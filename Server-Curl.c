@@ -39,12 +39,12 @@ void SetSocket()
 
 void ClientInterrection(int clientSocket, int id)
 {
-    char greeting[] = "HelloWorld \n";
+char response[] = "Content-Type: text/html; charset=utf-8; Content-Length: <11>; HelloWorld";
 
     switch (id)
     {
         case 1:
-            send(clientSocket, greeting, sizeof(greeting), 0);
+            send(clientSocket, response, sizeof(response), 0);
             break;
         }
 }
