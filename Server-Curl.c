@@ -39,7 +39,11 @@ void SetSocket()
 
 void ClientInterrection(int clientSocket, int id)
 {
-char response[] = "Content-Type: text/html; charset=utf-8; Content-Length: <11>; HelloWorld";
+    char response[] = 
+    "HTTP/1.1 200 OK\n"
+    "Content-Length: 12\n"
+    "\n"
+    "Hello World!";
 
     switch (id)
     {
