@@ -3,20 +3,34 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <stdbool.h>
+#include <string.h>
 
-void SetSocket();
-void Interrection(int id);
-void ClientInterrection(int clientSocket, int  id);
+typedef struct Task
+{
+    int id;
+    char * name;
+    struct Task * nextTask;
+}task_t;
+
+int SetSocket();
+char* ParseMethod(int clientSocket);
+void RequestInterractive(int clientSocket, int id);
+char* Recieve(int clientSocket);
+int NumberOfMethods(int clientSocket);
+task_t* MethodInterractive(int clientSocket, task_t* head, int id);
+task_t* Create(int clientSocket, task_t* head);
 
 int main()
 {
+    task_t* head = NULL;
     while(true)
     {
-        Interrection(0);
-        SetSocket();
+        int clientSocket = SetSocket();
+        MethodInterractive(clientSocket, head, NumberOfMethods(clientSocket));
     }
 }
-void SetSocket()
+
+int SetSocket()
 {
     int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -28,40 +42,122 @@ void SetSocket()
     bind(serverSocket, (struct sockaddr *)&setConnect, sizeof(setConnect));
     listen(serverSocket, 1);
 
+    
     int clientSocket = accept(serverSocket, NULL, NULL);
-
-    char clientGet[256];
-    recv(clientSocket, clientGet, sizeof(clientGet), 0);
-
-    ClientInterrection(clientSocket, 1);
+    return clientSocket;
 
 }
-
-void ClientInterrection(int clientSocket, int id)
+void RequestInterractive(int clientSocket, int id)
 {
-    char response[] = 
+    char request[] = 
     "HTTP/1.1 200 OK\n"
-    "Content-Length: 12\n"
+    "Content-Type: text\n"
+    "Content-Length: 1\n"
+    "Connection: keep-alive\n"
     "\n"
-    "Hello World!";
+    "Insert name\n";
 
     switch (id)
     {
-        case 1:
-            send(clientSocket, response, sizeof(response), 0);
-            break;
-        }
+    case 0:
+    while(true)
+    {
+        send(clientSocket, request, sizeof(request), 0);
+    }
+    default:
+        break;
+    }
 }
-void Interrection(int id)
+char* ParseMethod(int clientSocket)
 {
+    
+    char* response = Recieve(clientSocket);
+    char* slash = strchr(response, ' ');
+
+    char buffer[25];
+
+    for(int i = 0; response[i] != slash[0]; i++)
+    {
+        buffer[i] = response[i];
+    }
+
+    size_t sizeOfMethod = strlen(buffer);
+
+    char method[sizeOfMethod];
+    strcpy(method, buffer);
+
+    char* pointerToMethod = method;
+    //printf("pointerTomethod [<%s>]\n", pointerToMethod);
+
+    return pointerToMethod;
+}
+char* Recieve(int clientSocket)
+{
+    char buffer[256];
+    recv(clientSocket, buffer, sizeof(buffer), 0);
+    size_t size = strlen(buffer);
+    char response[size];
+    strcpy(response, buffer);
+
+    char * pointerToResponse = response;
+    //printf("Recieve - %s\n", pointerToResponse);
+    return pointerToResponse;
+}
+
+int NumberOfMethods(int clientSocket)
+{   
+    char* pointerToMethod = ParseMethod(clientSocket);
+    size_t size = strlen(pointerToMethod);
+    char method[size];
+    for(int i = 0; i < size; i++)
+    {
+        method[i] = pointerToMethod[i];
+    } 
+    //printf("method [%s]\n", method);
+
+    if(strcmp(method, "CREATE") == 0)
+    {
+        //RequestInterractive(clientSocket, 0);
+        return 0;
+    }
+    if(strcmp(method, "READ") == 0)
+    {
+        return 1;
+    }
+    if(strcmp(method, "UPDATE") == 0)
+    {
+        return 2;
+    }
+    if(strcmp(method, "DELETE") == 0)
+    {
+        return 3;
+    }
+
+    return -1;
+}
+
+task_t* Create(int clientSocket, task_t* head)//
+{
+    if(head == NULL)
+    {
+        head = malloc(sizeof(task_t));
+        head->id = 0;
+        head->name = Recieve(clientSocket);
+    }
+    return head;
+}
+
+task_t* MethodInterractive(int clientSocket, task_t* head, int id)
+{
+    task_t* firstItem = head;
     switch (id)
     {
         case 0:
-            printf("Server \n");
+            firstItem = Create(clientSocket, head);
+            printf("id-[%d] name - [%s]", firstItem->id, firstItem->name);
             break;
-        
-        case 1:
-            printf("Error of connection \n");
+        default:
             break;
     }
+    return firstItem;
 }
