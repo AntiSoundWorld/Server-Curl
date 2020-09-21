@@ -5,29 +5,24 @@
 #include <stdbool.h>
 #include <string.h>
 
-typedef struct Task
+typedef struct Parse
 {
-    int id;
-    char * name;
-    struct Task * nextTask;
-}task_t;
+    char* request;
+    char* method;
+    char* name;
+}parse_t;
+
 
 int SetSocket();
-char* ParseMethod(int clientSocket);
-void RequestInterractive(int clientSocket, int id);
-char* Recieve(int clientSocket);
-int NumberOfMethods(int clientSocket);
-task_t* MethodInterractive(int clientSocket, task_t* head, int id);
-task_t* Create(int clientSocket, task_t* head);
+parse_t* Recieve(int clientSocket, parse_t* parseRequest);
+parse_t* ParseName(parse_t* parseRequest);
+parse_t* ParseMethod(parse_t* parseRequest);
+int MethodInterracive(parse_t* parseRequest);
 
 int main()
 {
-    task_t* head = NULL;
-    while(true)
-    {
-        int clientSocket = SetSocket();
-        MethodInterractive(clientSocket, head, NumberOfMethods(clientSocket));
-    }
+    parse_t* parseRequest = malloc(sizeof(parse_t));
+    MethodInterracive(ParseMethod(ParseName(Recieve(SetSocket(), parseRequest))));
 }
 
 int SetSocket()
@@ -36,128 +31,102 @@ int SetSocket()
 
     struct sockaddr_in setConnect;
     setConnect.sin_family = AF_INET;
-    setConnect.sin_port = htons(8080);
+    setConnect.sin_port = ntohs(8080);
     setConnect.sin_addr.s_addr = inet_addr("127.0.0.1");
 
-    bind(serverSocket, (struct sockaddr *)&setConnect, sizeof(setConnect));
+    bind(serverSocket, (const struct sockaddr*) &setConnect, sizeof(setConnect));
     listen(serverSocket, 1);
 
-    
     int clientSocket = accept(serverSocket, NULL, NULL);
+
     return clientSocket;
-
 }
-void RequestInterractive(int clientSocket, int id)
+parse_t* Recieve(int clientSocket, parse_t* parseRequest)
 {
-    char request[] = 
-    "HTTP/1.1 200 OK\n"
-    "Content-Type: text\n"
-    "Content-Length: 1\n"
-    "Connection: keep-alive\n"
-    "\n"
-    "Insert name\n";
-
-    switch (id)
-    {
-    case 0:
-    while(true)
-    {
-        send(clientSocket, request, sizeof(request), 0);
-    }
-    default:
-        break;
-    }
-}
-char* ParseMethod(int clientSocket)
-{
-    
-    char* response = Recieve(clientSocket);
-    char* slash = strchr(response, ' ');
-
-    char buffer[25];
-
-    for(int i = 0; response[i] != slash[0]; i++)
-    {
-        buffer[i] = response[i];
-    }
-
-    size_t sizeOfMethod = strlen(buffer);
-
-    char method[sizeOfMethod];
-    strcpy(method, buffer);
-
-    char* pointerToMethod = method;
-    //printf("pointerTomethod [<%s>]\n", pointerToMethod);
-
-    return pointerToMethod;
-}
-char* Recieve(int clientSocket)
-{
-    char buffer[256];
+    char buffer[1000];
     recv(clientSocket, buffer, sizeof(buffer), 0);
     size_t size = strlen(buffer);
-    char response[size];
-    strcpy(response, buffer);
+    char request[size];
+    strcpy(request, buffer);
+    parseRequest->request = request;
 
-    char * pointerToResponse = response;
-    //printf("Recieve - %s\n", pointerToResponse);
-    return pointerToResponse;
+    //printf("Request: \n%s\n size[%ld]\n", request, size);  //show full request and size
+
+    return parseRequest;
 }
 
-int NumberOfMethods(int clientSocket)
-{   
-    char* pointerToMethod = ParseMethod(clientSocket);
-    size_t size = strlen(pointerToMethod);
-    char method[size];
-    for(int i = 0; i < size; i++)
-    {
-        method[i] = pointerToMethod[i];
-    } 
-    //printf("method [%s]\n", method);
+parse_t* ParseName(parse_t* parseRequest)
+{
+    char* openBracket = strchr(parseRequest->request, '{');
+    openBracket = openBracket + 2;
+    char* closeBracket = strchr(parseRequest->request, '}');
+    closeBracket = closeBracket - 1;
 
-    if(strcmp(method, "CREATE") == 0)
+
+    int i = 0;
+    while(parseRequest->request[i] != openBracket[0])
     {
-        //RequestInterractive(clientSocket, 0);
+        i++;
+    }
+
+    char buffer[100];
+    int j = 0;
+    while(parseRequest->request[i] != closeBracket[0])
+    {
+        buffer[j] = parseRequest->request[i];
+        i++;
+        j++;
+    }
+
+    size_t size = strlen(buffer);
+    char name[size];
+    strcpy(name, buffer);
+    parseRequest->name = name;
+    //printf("name = %s\n", name);     //show name
+
+    return parseRequest;
+}
+
+parse_t* ParseMethod(parse_t* parseRequest)
+{
+    char* space = strchr(parseRequest->request, ' ');
+
+    char buffer[100];
+    int i = 0;
+    while(parseRequest->request[i] != space[0])
+    {
+        buffer[i] = parseRequest->request[i];
+        i++;
+    }
+    
+    size_t size = strlen(buffer);
+    char method[size];
+    strcpy(method, buffer);
+
+    parseRequest->method = method;
+    //printf("method %s\n", method);   //show method
+
+    return parseRequest;
+}
+
+int MethodInterracive(parse_t* ParseRequest)
+{
+    if(strcmp(ParseRequest->method, "GET") == 0)
+    {
         return 0;
     }
-    if(strcmp(method, "READ") == 0)
+    if(strcmp(ParseRequest->method, "POST") == 0)
     {
         return 1;
     }
-    if(strcmp(method, "UPDATE") == 0)
+    if(strcmp(ParseRequest->method, "PUT") == 0)
     {
         return 2;
     }
-    if(strcmp(method, "DELETE") == 0)
+    if(strcmp(ParseRequest->method, "DELETE") == 0)
     {
         return 3;
     }
 
     return -1;
-}
-
-task_t* Create(int clientSocket, task_t* head)//
-{
-    if(head == NULL)
-    {
-        head = malloc(sizeof(task_t));
-        head->id = 0;
-        head->name = Recieve(clientSocket);
-    }
-    return head;
-}
-
-task_t* MethodInterractive(int clientSocket, task_t* head, int id)
-{
-    task_t* firstItem = head;
-    switch (id)
-    {
-        case 0:
-            firstItem = Create(clientSocket, head);
-            printf("id-[%d] name - [%s]", firstItem->id, firstItem->name);
-            break;
-        default:
-            break;
-    }
-    return firstItem;
 }
