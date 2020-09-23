@@ -189,18 +189,6 @@ void Get(int socketClient, task_t* head)
         RequestInterractive(socketClient, 0, BuildResponse());
         return;
     }
-
-
-    int i = 0;
-    int j = 0;
-
-    task_t* pointer = head;
-    size_t sizeOfNames = 0;
-    while(pointer != NULL)
-    {
-       sizeOfNames = sizeOfNames + strlen(pointer->name);
-    }
-    printf("sizeofNames %ld", sizeOfNames);
 }
 
 void MethodInterractive(int socketClient, parse_t* parseRequest, task_t* head, int id)
@@ -222,26 +210,20 @@ char* BuildResponse()
     size_t sizeOfEmptyTask = strlen(bodyEmptyTask);
     
     char status[] = "HTTP/1.1 200 OK \n";
-    size_t sizeOfStatus = strlen(status);
 
     char type[] = "Content-Type: text \n";
-    size_t sizeOfType = strlen(type);
 
     char length[] = "Content-Length: ";
-    size_t sizeOfLength = strlen(length);
 
     char lineBreak[] = "\n";
-    size_t sizeOflineBreak = strlen(lineBreak);
 
     char* charSizeEmptyTask = malloc(sizeof(char));
     sprintf(charSizeEmptyTask, "%ld", sizeOfEmptyTask);
-    size_t sizeOfCharSizeEmptyTask = strlen(charSizeEmptyTask);
 
     strcat(length, charSizeEmptyTask);
     strcat(length, lineBreak);
     
-    size_t fullSizeOfRequest = sizeOfStatus + sizeOfType + sizeOfLength + sizeOflineBreak + sizeOfEmptyTask;
-    char* buildedResponse = malloc(fullSizeOfRequest);
+    char* buildedResponse = malloc(sizeof(char));
 
     strcat(buildedResponse, status);
     strcat(buildedResponse, type);
