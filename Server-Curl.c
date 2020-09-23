@@ -28,14 +28,13 @@ task_t* Post (parse_t* parseRequest, task_t* node);
 void MethodInterractive(int socketClient, parse_t* parseRequest, task_t* head, int id);
 void Get(int socketClient, task_t* head);
 char* BuildResponse();
-void RequestInterractive(int clientSocket, char* request, int id);
+void RequestInterractive(int clientSocket, int id, char* request);
 
 int main()
 {
     task_t* head = NULL;
-    parse_t* parseRequest = NULL;
+    parse_t* parseRequest = malloc(sizeof(parse_t));
 
-    parseRequest = malloc(sizeof(parse_t));
     int socketClient = SetSocket();
     MethodInterractive(socketClient, parseRequest, head, MethodID(ParseName(ParseMethod(Recieve(socketClient, parseRequest)))));
     free(parseRequest);
@@ -187,7 +186,7 @@ void Get(int socketClient, task_t* head)
 {
     if(head == NULL)
     {   
-        RequestInterractive(socketClient, BuildResponse(), 0);
+        RequestInterractive(socketClient, 0, BuildResponse());
         return;
     }
 
@@ -219,8 +218,8 @@ void MethodInterractive(int socketClient, parse_t* parseRequest, task_t* head, i
 
 char* BuildResponse()
 {
-    char emptyTask[] = "The task is empty";
-    size_t sizeOfEmptyTask = strlen(emptyTask);
+    char bodyEmptyTask[] = "The task is empty";
+    size_t sizeOfEmptyTask = strlen(bodyEmptyTask);
     
     char status[] = "HTTP/1.1 200 OK \n";
     size_t sizeOfStatus = strlen(status);
@@ -238,26 +237,35 @@ char* BuildResponse()
     sprintf(charSizeEmptyTask, "%ld", sizeOfEmptyTask);
     size_t sizeOfCharSizeEmptyTask = strlen(charSizeEmptyTask);
 
-    char fullContentLength[sizeOfLength + sizeOfCharSizeEmptyTask];
     strcat(length, charSizeEmptyTask);
-    size_t sizeOfFullContentLength = strlen(fullContentLength);
+    strcat(length, lineBreak);
     
-    size_t fullSizeOfRequest = sizeOfStatus + sizeOfType + sizeOfFullContentLength + sizeOflineBreak + sizeOfEmptyTask;
-    char* response = malloc(fullSizeOfRequest);
+    size_t fullSizeOfRequest = sizeOfStatus + sizeOfType + sizeOfLength + sizeOflineBreak + sizeOfEmptyTask;
+    char* buildedResponse = malloc(fullSizeOfRequest);
 
-    strcat(response, status);
-    strcat(response, type);
-    strcat(response, length);
-    strcat(response, lineBreak);
-    strcat(response, lineBreak);
-    strcat(response, emptyTask);
+    strcat(buildedResponse, status);
+    strcat(buildedResponse, type);
+    strcat(buildedResponse, length);
+    strcat(buildedResponse, lineBreak);
+    strcat(buildedResponse, bodyEmptyTask);
 
-    printf("%s \n", response);
-    return response;
+    //printf("%s \n", buildedResponse); //show full response
+    return buildedResponse;
 }
 
-void RequestInterractive(int clientSocket, char* response, int id)
-{
+void RequestInterractive(int clientSocket, int id, char* buildedResponse)
+{   
+    size_t sizeOfBuildedResponse = strlen(buildedResponse);
+    char response[sizeOfBuildedResponse];
+
+    unsigned i = 0;
+    while(i != sizeOfBuildedResponse)
+    {
+        response[i] = buildedResponse[i];
+        i++;
+    }
+    printf("%s \n", response);
+
     switch (id)
     {
     case 0:
