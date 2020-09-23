@@ -19,7 +19,7 @@ typedef struct Task
     struct Task * nextTask;
 }task_t;
 
-int SetSocket();
+void SetSocket();
 parse_t* Recieve(int clientSocket, parse_t* parseRequest);
 parse_t* ParseName(parse_t* parseRequest);
 parse_t* ParseMethod(parse_t* parseRequest);
@@ -32,15 +32,13 @@ void RequestInterractive(int clientSocket, int id, char* request);
 
 int main()
 {
-    task_t* head = NULL;
-    parse_t* parseRequest = malloc(sizeof(parse_t));
 
-    int socketClient = SetSocket();
-    MethodInterractive(socketClient, parseRequest, head, MethodID(ParseName(ParseMethod(Recieve(socketClient, parseRequest)))));
-    free(parseRequest);
+
+    SetSocket();
+   
 }
 
-int SetSocket()
+void SetSocket()
 {
     int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -52,10 +50,16 @@ int SetSocket()
     bind(serverSocket, (const struct sockaddr*) &setConnect, sizeof(setConnect));
     listen(serverSocket, 1);
 
-    int clientSocket = accept(serverSocket, NULL, NULL);
 
-    return clientSocket;
+    task_t* head = NULL;
 
+    while(true)
+    {
+        parse_t* parseRequest = malloc(sizeof(parse_t));
+        int clientSocket = accept(serverSocket, NULL, NULL);
+        MethodInterractive(clientSocket, parseRequest, head, MethodID(ParseName(ParseMethod(Recieve(clientSocket, parseRequest)))));
+        free(parseRequest);
+    }
 }
 parse_t* Recieve(int clientSocket, parse_t* parseRequest)
 {
@@ -175,7 +179,6 @@ task_t* Post (parse_t* parseRequest, task_t* head)
     pointer->id = i++;
 
     pointer->name = parseRequest->name;
-    free(parseRequest);
 
     pointer->nextTask = NULL;
 
@@ -232,6 +235,7 @@ char* BuildResponse()
     strcat(buildedResponse, bodyEmptyTask);
 
     //printf("%s \n", buildedResponse); //show full response
+    free(charSizeEmptyTask);
     return buildedResponse;
 }
 
