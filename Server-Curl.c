@@ -69,11 +69,31 @@ parse_t* Recieve(int clientSocket, parse_t* parseRequest)
     strcpy(request, buffer);
     parseRequest->request = request;
 
-    printf("Request: \n%s\n size[%ld]\n", request, size);  //show full request and size
+    //printf("Request: \n%s\n size[%ld]\n", request, size);  //show full request and size
 
     return parseRequest;
 }
 
+parse_t* ParseMethod(parse_t* parseRequest)
+{
+    char* space = strchr(parseRequest->request, ' ');
+
+    char buffer[100];
+    int i = 0;
+    while(parseRequest->request[i] != space[0])
+    {
+        buffer[i] = parseRequest->request[i];
+        i++;
+    }
+    
+    size_t size = strlen(buffer);
+    parseRequest->method = malloc(sizeof(size));
+    strcpy(parseRequest->method, buffer);
+
+    //printf("method %s\n", parseRequest->method);   //show method
+
+    return parseRequest;
+}
 parse_t* ParseName(parse_t* parseRequest)
 {
     if(strcmp(parseRequest->method, "POST") == 0)
@@ -99,35 +119,13 @@ parse_t* ParseName(parse_t* parseRequest)
         }
 
         size_t size = strlen(buffer);
-        char name[size];
-        strcpy(name, buffer);
-        parseRequest->name = name;
-        printf("name = %s\n", name);     //show name
+        parseRequest->name = malloc(sizeof(size));
+        strcpy(parseRequest->name, buffer);
+        //printf("name = %s\n", parseRequest->name);     //show name
     }
     return parseRequest;
 }
 
-parse_t* ParseMethod(parse_t* parseRequest)
-{
-    char* space = strchr(parseRequest->request, ' ');
-
-    char buffer[100];
-    int i = 0;
-    while(parseRequest->request[i] != space[0])
-    {
-        buffer[i] = parseRequest->request[i];
-        i++;
-    }
-    
-    size_t size = strlen(buffer);
-    char method[size];
-    strcpy(method, buffer);
-
-    parseRequest->method = method;
-    printf("method %s\n", method);   //show method
-
-    return parseRequest;
-}
 
 int MethodID(parse_t* ParseRequest)
 {
@@ -137,8 +135,6 @@ int MethodID(parse_t* ParseRequest)
     }
     if(strcmp(ParseRequest->method, "POST") == 0)
     {
-        printf("I am in a MethodID POST");
-
         return 1;
     }
     if(strcmp(ParseRequest->method, "PUT") == 0)
@@ -206,7 +202,6 @@ void MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest)
             Get(socketClient, head);
             break;
         case 1:
-            printf("I am in a MethodInterractive POST");
             Post(socketClient, parseRequest, head);
             break;
     }
