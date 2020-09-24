@@ -26,9 +26,9 @@ parse_t* ParseMethod(parse_t* parseRequest);
 int MethodID(parse_t* parseRequest);
 task_t* Post (int socketClient, parse_t* parseRequest, task_t* node);
 void MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest);
-void Get(int socketClient, task_t* head);
-char* BuildResponse(int id);
-void RequestInterractive(int clientSocket, int id, char* request);
+void Get(int socketClient, task_t* head, parse_t* ParseRequest);
+char* BuildResponse(int id, parse_t* parseRequest);
+void SendResponse(int clientSocket, char* request);
 
 int main()
 {
@@ -44,7 +44,7 @@ void SetSocket()
 
     struct sockaddr_in setConnect;
     setConnect.sin_family = AF_INET;
-    setConnect.sin_port = ntohs(8080);
+    setConnect.sin_port = ntohs(8090);
     setConnect.sin_addr.s_addr = inet_addr("127.0.0.1");
 
     bind(serverSocket, (const struct sockaddr*) &setConnect, sizeof(setConnect));
@@ -53,21 +53,19 @@ void SetSocket()
 
     task_t* head = NULL;
 
-    parse_t* parseRequest = malloc(sizeof(parse_t));
     int clientSocket = accept(serverSocket, NULL, NULL);
+    parse_t* parseRequest = malloc(sizeof(parse_t));
 
     parseRequest = ParseName(ParseMethod(Recieve(clientSocket, parseRequest)));
     MethodInterractive(clientSocket, head, parseRequest);
-    free(parseRequest);
 }
 parse_t* Recieve(int clientSocket, parse_t* parseRequest)
 {
     char buffer[1000];
     recv(clientSocket, buffer, sizeof(buffer), 0);
     size_t size = strlen(buffer);
-    char request[size];
-    strcpy(request, buffer);
-    parseRequest->request = request;
+    parseRequest->request = malloc(size);
+    strcpy(parseRequest->request, buffer);
 
     //printf("Request: \n%s\n size[%ld]\n", request, size);  //show full request and size
 
@@ -87,13 +85,14 @@ parse_t* ParseMethod(parse_t* parseRequest)
     }
     
     size_t size = strlen(buffer);
-    parseRequest->method = malloc(sizeof(size));
+    parseRequest->method = malloc(size);
     strcpy(parseRequest->method, buffer);
 
     //printf("method %s\n", parseRequest->method);   //show method
 
     return parseRequest;
 }
+
 parse_t* ParseName(parse_t* parseRequest)
 {
     if(strcmp(parseRequest->method, "POST") == 0)
@@ -119,7 +118,7 @@ parse_t* ParseName(parse_t* parseRequest)
         }
 
         size_t size = strlen(buffer);
-        parseRequest->name = malloc(sizeof(size));
+        parseRequest->name = malloc(size);
         strcpy(parseRequest->name, buffer);
         //printf("name = %s\n", parseRequest->name);     //show name
     }
@@ -153,16 +152,14 @@ task_t* Post (int socketClient, parse_t* parseRequest, task_t* head)
 {
     if(head == NULL)
     {
-        printf("I am in the POST");
         head = malloc(sizeof(task_t));
         head->id = 0;
 
         head->name = parseRequest->name;
-        free(parseRequest);
 
         head->nextTask = NULL;
         
-        RequestInterractive(socketClient, 0, BuildResponse(1));
+        SendResponse(socketClient, BuildResponse(1, parseRequest));
 
         return head;
     }
@@ -185,13 +182,14 @@ task_t* Post (int socketClient, parse_t* parseRequest, task_t* head)
     return head;
 }
 
-void Get(int socketClient, task_t* head)
+void Get(int socketClient, task_t* head, parse_t* parseRequest)
 {
     if(head == NULL)
     {   
-        RequestInterractive(socketClient, 0, BuildResponse(0));
+        SendResponse(socketClient, BuildResponse(0, parseRequest));
         return;
     }
+
 }
 
 void MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest)
@@ -199,7 +197,7 @@ void MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest)
     switch (MethodID(parseRequest))
     {
         case 0:
-            Get(socketClient, head);
+            Get(socketClient, head, parseRequest);
             break;
         case 1:
             Post(socketClient, parseRequest, head);
@@ -207,18 +205,35 @@ void MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest)
     }
 }
 
-char* BuildResponse(int id)
+char* BuildResponse(int id, parse_t* parseRequest)
 {
     char bodyEmptyTask[] = "The task is empty";
     size_t sizeOfEmptyTask = strlen(bodyEmptyTask);
     
-    char status[] = "HTTP/1.1 200 OK \n";
+    char status200[] = "HTTP/1.1 200 OK \n";
+    size_t sizeOfStatus200 = strlen(status200);
+
+    char status201[] = "HTTP/1.1 201 OK \n";
+    size_t sizeOfStatus201 = strlen(status201);
 
     char type[] = "Content-Type: text \n";
+    size_t sizeOfType = strlen(type);
+
 
     char length[] = "Content-Length: ";
+    size_t sizeOfLength = strlen(length);
+
+    //char data[] = "";
+    //size_t sizeOfData = strlen(data);
+
+
+
+    //char conncection[] = "Connection: keep-alive";
+    //size_t sizeOfConncection = strlen(conncection);
 
     char lineBreak[] = "\n";
+    size_t sizeOfLineBreak = strlen(lineBreak);
+
 
     if(id == 0)
     {
@@ -228,9 +243,10 @@ char* BuildResponse(int id)
         strcat(length, charSizeEmptyTask);
         strcat(length, lineBreak);
         
-        char* buildedResponse = malloc(sizeof(char));
+        size_t sizeOfrequest = sizeOfStatus200 + sizeOfType + sizeOfLength + sizeOfLineBreak + sizeOfEmptyTask;
+        char* buildedResponse = malloc(sizeOfrequest);
 
-        strcat(buildedResponse, status);
+        strcat(buildedResponse, status200);
         strcat(buildedResponse, type);
         strcat(buildedResponse, length);
         strcat(buildedResponse, lineBreak);
@@ -242,14 +258,15 @@ char* BuildResponse(int id)
     }
     if(id == 1)
     {
-        char* buildedResponse = malloc(sizeof(char));
-        strcat(buildedResponse, status);
+        size_t bufferResponse = sizeOfStatus201;
+        char* buildedResponse = malloc(bufferResponse);
+        strcat(buildedResponse, status201);
         return buildedResponse;
     }
     return NULL;
 }
 
-void RequestInterractive(int clientSocket, int id, char* buildedResponse)
+void SendResponse(int clientSocket, char* buildedResponse)
 {   
     size_t sizeOfBuildedResponse = strlen(buildedResponse);
     char response[sizeOfBuildedResponse];
@@ -262,13 +279,6 @@ void RequestInterractive(int clientSocket, int id, char* buildedResponse)
     }
     printf("%s \n", response);
 
-    switch (id)
-    {
-    case 0:
-        send(clientSocket, response, sizeof(response), 0);
-        break;
-    
-    default:
-        break;
-    }
+    send(clientSocket, response, sizeof(response), 0);
+    free(buildedResponse);
 }
