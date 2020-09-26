@@ -25,7 +25,7 @@ parse_t* ParseName(parse_t* parseRequest);
 parse_t* ParseMethod(parse_t* parseRequest);
 int MethodID(parse_t* parseRequest);
 task_t* Post (int socketClient, parse_t* parseRequest, task_t* node);
-void MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest);
+task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest);
 void Get(int socketClient, task_t* head, parse_t* ParseRequest);
 char* BuildResponse(int id, parse_t* parseRequest);
 void SendResponse(int clientSocket, char* request);
@@ -51,7 +51,7 @@ void SetSocket()
     listen(serverSocket, 1);
 
 
-    //task_t* head = NULL;
+    task_t* head = NULL;
     
     while(true)
     {   
@@ -59,6 +59,7 @@ void SetSocket()
         int clientSocket = accept(serverSocket, NULL, NULL);
 
         parseRequest = ParseName(ParseMethod(Recieve(clientSocket, parseRequest)));
+        head = MethodInterractive(clientSocket, head, parseRequest);
         free(parseRequest);
     }
 }
@@ -160,8 +161,8 @@ task_t* Post (int socketClient, parse_t* parseRequest, task_t* head)
         head = (task_t*)malloc(sizeof(task_t));
         head->id = 0;
 
+        head->name = (char*)malloc(strlen(parseRequest->name) * sizeof(char) + 1);
         head->name = parseRequest->name;
-
         head->nextTask = NULL;
         
         SendResponse(socketClient, BuildResponse(1, parseRequest));
@@ -205,7 +206,7 @@ void Get(int socketClient, task_t* head, parse_t* parseRequest)
     //printf("sizeOfNames %ld", sizeOfNames);
 }
 
-void MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest)
+task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest)
 {
     switch (MethodID(parseRequest))
     {
@@ -213,9 +214,10 @@ void MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest)
             Get(socketClient, head, parseRequest);
             break;
         case 1:
-            Post(socketClient, parseRequest, head);
+            return Post(socketClient, parseRequest, head);
             break;
     }
+    return head;
 }
 
 char* BuildResponse(int id, parse_t* parseRequest)
