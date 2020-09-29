@@ -32,10 +32,7 @@ void SendResponse(int clientSocket, char* request);
 
 int main()
 {
-
-
     SetSocket();
-   
 }
 
 void SetSocket()
@@ -99,19 +96,19 @@ parse_t* ParseName(parse_t* parseRequest)
     if(strcmp(parseRequest->method, "POST") == 0)
     {
         char* request = parseRequest->request;
-        size_t sizeOfRequest = strlen(parseRequest->request);
-        printf("size [%ld] \n", sizeOfRequest);
+        int size = strlen(request);
 
         int i = 0;
-        while(i != sizeOfRequest)
+        int j = 1;
+        while(j < size)
         {
-            if(request[i] == '\n' && request[i - 1] == '\n')
+            if(request[i] == '\n' && request[j] == '\n')
             {
-                printf("Bugulma");
+                printf("Hello");
             }
             i++;
+            j++;
         }
-        printf("i [%d]\n", i);
     }
     return parseRequest;
 }
