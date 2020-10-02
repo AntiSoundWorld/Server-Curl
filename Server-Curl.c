@@ -21,8 +21,9 @@ typedef struct Task
 
 void SetSocket();
 parse_t* Recieve(int clientSocket, parse_t* parseRequest);
-parse_t* ParseName(parse_t* parseRequest);
 parse_t* ParseMethod(parse_t* parseRequest);
+char* IsolateBody(parse_t* parseRequest);
+void ParseName(parse_t* parseRequest, char* body);
 int MethodID(parse_t* parseRequest);
 task_t* Post (int socketClient, parse_t* parseRequest, task_t* node);
 task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest);
@@ -48,69 +49,118 @@ void SetSocket()
     listen(serverSocket, 1);
 
 
-    task_t* head = NULL;
     parse_t* parseRequest = (parse_t *)malloc(sizeof(parse_t));
     int clientSocket = accept(serverSocket, NULL, NULL);
 
-    parseRequest = ParseName(ParseMethod(Recieve(clientSocket, parseRequest)));
-    head = MethodInterractive(clientSocket, head, parseRequest);
+    
+    ParseName(parseRequest, IsolateBody(ParseMethod(Recieve(clientSocket, parseRequest))));
+    free(parseRequest->request);
+    free(parseRequest->method);
+    free(parseRequest->name);
     free(parseRequest);
+
 }
 parse_t* Recieve(int clientSocket, parse_t* parseRequest)
 {
     char buffer[1000] = "\0";
     recv(clientSocket, buffer, sizeof(buffer), 0);
-    size_t sizeOfRecieve = strlen(buffer);
-    char recieve[sizeOfRecieve + 1];
-
-    strcpy(recieve, buffer);
-    parseRequest->request = recieve;
-    //printf("REQUSET\n: \n%s\n ", parseRequest->request);  //show full request and size
-
+    size_t sizeOfBuffer = strlen(buffer);
+    parseRequest->request = malloc(sizeOfBuffer + 1);
+    strcpy(parseRequest->request, buffer);
+    //printf("Request:\n %s\n ", parseRequest->request);  //show full request and size
 
     return parseRequest;
 }
 
 parse_t* ParseMethod(parse_t* parseRequest)
 {
-    char* space = strchr(parseRequest->request, ' ');
-
     char buffer[100] = "\0";
     int i = 0;
-    while(parseRequest->request[i] != space[0])
+    while(parseRequest->request[i] != ' ')
     {
         buffer[i] = parseRequest->request[i];
         i++;
     }
-    size_t sizeOfMethod = strlen(buffer);
-    char method[sizeOfMethod + 1];
-    strcpy(method, buffer);
-    parseRequest->method = method;
-    printf("METHOD %s\n", parseRequest->method);   //show method
+    size_t sizeOfBuffer = strlen(buffer);
+    parseRequest->method = malloc(sizeOfBuffer + 1);
+    strcpy(parseRequest->method, buffer);
+    //printf("Method \n%s\n", parseRequest->method);   //show method
 
     return parseRequest;
 }
+char* IsolateBody(parse_t* parseRequest)
 
-parse_t* ParseName(parse_t* parseRequest)
 {
     if(strcmp(parseRequest->method, "POST") == 0)
     {
         char* request = parseRequest->request;
-        int size = strlen(request);
+        int sizeOfRequest = strlen(request);
 
         int i = 0;
-        int j = 1;
-        while(j < size)
+        int j = 2;
+        
+        while(j < sizeOfRequest)
         {
             if(request[i] == '\n' && request[j] == '\n')
             {
-                printf("Hello");
+                break;
             }
             i++;
             j++;
         }
+
+        int a = 0;
+        char buffer[1024] = "\0";
+
+        while(j < sizeOfRequest)
+        {
+            buffer[a] = request[j];
+            j++;
+            a++;
+        }
+        size_t sizeOfBuffer = strlen(buffer);
+        char* body = malloc(sizeOfBuffer + 1);
+        strcpy(body, buffer);
+
+        return body;
     }
-    return parseRequest;
+    return NULL;
+}
+
+void ParseName(parse_t* parseRequest, char* body)
+{
+    int i = 0;
+    size_t sizeOfBody = strlen(body);
+    while(i != sizeOfBody)
+    {
+        if(body[i] == ' ')
+        {
+            break;
+        }
+        i++;
+    }
+
+    i++;
+
+    char buffer[1024] = "\0";
+    int j = 0;
+    while(i < sizeOfBody)
+    {
+        if(body[i] == '"')
+        {
+            break;
+        }
+        
+        buffer[j] = body[i];
+        i++;
+        j++;
+    }
+    size_t sizeOfBuffer = strlen(buffer);
+
+    parseRequest->name = malloc(sizeOfBuffer + 1);
+    strcat(parseRequest->name, buffer);
+    free(body);
+    //printf("name:\n%s\n", parseRequest->name);
 }
 
 
