@@ -28,7 +28,7 @@ int MethodID(parse_t* parseRequest);
 task_t* Post (int socketClient, parse_t* parseRequest, task_t* node);
 task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest);
 void Get(int socketClient, task_t* head, parse_t* ParseRequest);
-char* BuildResponse(int id);
+char* BuildResponse(int id, char* names);
 void SendResponse(int clientSocket, char* request);
 
 int main()
@@ -175,15 +175,12 @@ void ParseName(parse_t* parseRequest)
 
 int MethodID(parse_t* ParseRequest)
 {
-    printf("\nI am in Method ID\n");
     if(strcmp(ParseRequest->method, "GET") == 0)
     {
-        printf("\nI am in Method ID GET\n");
         return 0;
     }
     if(strcmp(ParseRequest->method, "POST") == 0)
     {
-        printf("\nI am in Method ID POST\n");
         return 1;
     }
     if(strcmp(ParseRequest->method, "PUT") == 0)
@@ -202,7 +199,6 @@ task_t* Post (int socketClient, parse_t* parseRequest, task_t* head)
 {
     if(head == NULL)
     {
-        
         head = (task_t*)malloc(sizeof(task_t));
         head->id = 0;
 
@@ -211,7 +207,7 @@ task_t* Post (int socketClient, parse_t* parseRequest, task_t* head)
 
         head->nextTask = NULL;
         
-        SendResponse(socketClient, BuildResponse(1));
+        SendResponse(socketClient, BuildResponse(1, NULL));
 
         return head;
     }
@@ -219,17 +215,17 @@ task_t* Post (int socketClient, parse_t* parseRequest, task_t* head)
     static int i = 0;
 
     task_t* pointer = head;
-    while(pointer != NULL)
+    while(pointer->nextTask != NULL)
     {
         pointer = pointer->nextTask;
     }
 
-    pointer = (task_t*)malloc(sizeof(task_t));
-    pointer->id = i++;
+    pointer->nextTask = (task_t*)malloc(sizeof(task_t));
+    pointer->nextTask->id = i++;
 
-    pointer->name = parseRequest->name;
-
-    pointer->nextTask = NULL;
+    pointer->nextTask->name = malloc(strlen(parseRequest->name));
+    strcpy(pointer->nextTask->name, parseRequest->name);
+    pointer->nextTask->nextTask = NULL;
 
     return head;
 }
@@ -238,24 +234,37 @@ void Get(int socketClient, task_t* head, parse_t* parseRequest)
 {
     if(head == NULL)
     {   
-        SendResponse(socketClient, BuildResponse(0));
+        SendResponse(socketClient, BuildResponse(0, NULL));
         return;
     }
-    printf("GET != NULL");
     task_t* pointer = head;
+
     size_t sizeOfNames = 0;
+
     while(pointer != NULL)
     {
         sizeOfNames = sizeOfNames + strlen(pointer->name);
+        sizeOfNames = sizeOfNames + 1;
         pointer = pointer->nextTask;
     }
-    //printf("sizeOfNames %ld", sizeOfNames);
+
+    char* bufferOfNames = malloc(sizeOfNames + 1);
+
+    pointer = head;
+    while(pointer != NULL)
+    {
+        strcat(bufferOfNames, pointer->name);
+        strcat(bufferOfNames, "\n");
+        pointer = pointer->nextTask;
+    }
+
+    SendResponse(socketClient, BuildResponse(2, bufferOfNames));
+
+    printf("sizeOfNames %ld\n", sizeOfNames);
 }
 
 task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest)
 {
-    printf("I am in MethodInterractive");
-
     switch (MethodID(parseRequest))
     {
         case 0:
@@ -268,7 +277,7 @@ task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest
     return head;
 }
 
-char* BuildResponse(int id)
+char* BuildResponse(int id, char* names)
 {
     char bodyEmptyTask[] = "The task is empty";
     size_t sizeOfEmptyTask = strlen(bodyEmptyTask);
@@ -276,14 +285,13 @@ char* BuildResponse(int id)
     char status[] = "HTTP/1.1 200 OK \n";
     size_t sizeOfStatus200 = strlen(status);
 
-    char type[] = "Content-Type: text \n";
+    char type[] = "Content-Type: application/json \n";
     size_t sizeOfType = strlen(type);
-
 
     char length[] = "Content-Length: ";
     size_t sizeOfLength = strlen(length);
 
-    char connection[] = "Connection: close \n";
+    char connection[] = "Connection: keep-alive \n";
     size_t sizeOfConnection = strlen(connection);
 
     char lineBreak[] = "\n";
@@ -308,7 +316,7 @@ char* BuildResponse(int id)
         strcat(buildedResponse, lineBreak);
         strcat(buildedResponse, bodyEmptyTask);
 
-        printf("%s \n", buildedResponse); //show full response
+        //printf("%s \n", buildedResponse); //show full response
         free(charSizeEmptyTask);
         return buildedResponse;
     }
@@ -322,6 +330,28 @@ char* BuildResponse(int id)
         strcat(buildedResponse, lineBreak);
 
         //printf("\nFull response\n%s \n", buildedResponse); //show full response
+        return buildedResponse;
+    }
+    if(id == 2)
+    {
+        size_t sizeOfNames = strlen(names);
+        size_t sizeOfResponse = sizeOfStatus200 + sizeOfType + sizeOfLength + sizeOfConnection + sizeOfLineBreak + sizeOfNames;
+
+        char* charSizeOfNames = malloc(sizeOfNames);
+        sprintf(charSizeOfNames, "%ld", sizeOfNames);
+
+        strcat(length, charSizeOfNames);
+        strcat(length, lineBreak);
+
+        char* buildedResponse = malloc(sizeOfResponse + 1);
+       
+        strcat(buildedResponse, status);
+        strcat(buildedResponse, type);
+        strcat(buildedResponse, length);
+        strcat(buildedResponse, connection);
+        strcat(buildedResponse, lineBreak);
+        strcat(buildedResponse, names);
+
         return buildedResponse;
     }
     return NULL;
