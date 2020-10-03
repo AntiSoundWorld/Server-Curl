@@ -23,7 +23,7 @@ void SetSocket();
 parse_t* Recieve(int clientSocket, parse_t* parseRequest);
 parse_t* ParseMethod(parse_t* parseRequest);
 char* IsolateBody(parse_t* parseRequest);
-void ParseName(parse_t* parseRequest, char* body);
+void ParseName(parse_t* parseRequest);
 int MethodID(parse_t* parseRequest);
 task_t* Post (int socketClient, parse_t* parseRequest, task_t* node);
 task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest);
@@ -48,16 +48,21 @@ void SetSocket()
     bind(serverSocket, (const struct sockaddr*) &setConnect, sizeof(setConnect));
     listen(serverSocket, 1);
 
+    task_t* head = NULL;
+    while(true)
+    {
+        int clientSocket = accept(serverSocket, NULL, NULL);
 
-    parse_t* parseRequest = (parse_t *)malloc(sizeof(parse_t));
-    int clientSocket = accept(serverSocket, NULL, NULL);
+        parse_t* parseRequest = (parse_t *)malloc(sizeof(parse_t));
 
-    
-    ParseName(parseRequest, IsolateBody(ParseMethod(Recieve(clientSocket, parseRequest))));
-    free(parseRequest->request);
-    free(parseRequest->method);
-    free(parseRequest->name);
-    free(parseRequest);
+        ParseName(ParseMethod(Recieve(clientSocket, parseRequest)));
+
+        head = MethodInterractive(clientSocket, head, parseRequest);
+
+        free(parseRequest->request);
+        free(parseRequest->name);
+        free(parseRequest);
+    }
 
 }
 parse_t* Recieve(int clientSocket, parse_t* parseRequest)
@@ -65,113 +70,120 @@ parse_t* Recieve(int clientSocket, parse_t* parseRequest)
     char buffer[1000] = "\0";
     recv(clientSocket, buffer, sizeof(buffer), 0);
     size_t sizeOfBuffer = strlen(buffer);
-    parseRequest->request = malloc(sizeOfBuffer + 1);
+
+    parseRequest->request = malloc(sizeOfBuffer);
     strcpy(parseRequest->request, buffer);
-    //printf("Request:\n %s\n ", parseRequest->request);  //show full request and size
 
     return parseRequest;
+    //printf("Request:\n %s\n ", parseRequest->request);  //show full request and size
 }
 
 parse_t* ParseMethod(parse_t* parseRequest)
 {
+    char* request = parseRequest->request;
     char buffer[100] = "\0";
+
     int i = 0;
-    while(parseRequest->request[i] != ' ')
+
+    while(request[i] != ' ')
     {
-        buffer[i] = parseRequest->request[i];
+        buffer[i] = request[i];
         i++;
     }
     size_t sizeOfBuffer = strlen(buffer);
-    parseRequest->method = malloc(sizeOfBuffer + 1);
+    parseRequest->method = malloc(sizeOfBuffer);
     strcpy(parseRequest->method, buffer);
-    //printf("Method \n%s\n", parseRequest->method);   //show method
 
     return parseRequest;
+    //printf("Method \n%s\n", parseRequest->method);   //show method
 }
-char* IsolateBody(parse_t* parseRequest)
 
+char* IsolateBody(parse_t* parseRequest)
+{
+    char* request = parseRequest->request;
+    int sizeOfRequest = strlen(request);
+
+    int i = 0;
+    int j = 2;
+    
+    while(j < sizeOfRequest)
+    {
+        if(request[i] == '\n' && request[j] == '\n')
+        {
+            break;
+        }
+        i++;
+        j++;
+    }
+
+    int a = 0;
+    char buffer[1024] = "\0";
+
+    while(j < sizeOfRequest)
+    {
+        buffer[a] = request[j];
+        j++;
+        a++;
+    }
+    size_t sizeOfBuffer = strlen(buffer);
+    char* body = malloc(sizeOfBuffer + 1);
+    strcpy(body, buffer);
+
+    return body;
+}
+
+void ParseName(parse_t* parseRequest)
 {
     if(strcmp(parseRequest->method, "POST") == 0)
     {
-        char* request = parseRequest->request;
-        int sizeOfRequest = strlen(request);
-
+        char* body = IsolateBody(parseRequest);
         int i = 0;
-        int j = 2;
-        
-        while(j < sizeOfRequest)
+        size_t sizeOfBody = strlen(body);
+        while(i != sizeOfBody)
         {
-            if(request[i] == '\n' && request[j] == '\n')
+            if(body[i] == ' ')
             {
                 break;
             }
             i++;
-            j++;
         }
 
-        int a = 0;
-        char buffer[1024] = "\0";
+        i++;
 
-        while(j < sizeOfRequest)
+        char buffer[1024] = "\0";
+        int j = 0;
+        while(i < sizeOfBody)
         {
-            buffer[a] = request[j];
+            if(body[i] == '"')
+            {
+                break;
+            }
+            
+            buffer[j] = body[i];
+            i++;
             j++;
-            a++;
         }
         size_t sizeOfBuffer = strlen(buffer);
-        char* body = malloc(sizeOfBuffer + 1);
-        strcpy(body, buffer);
 
-        return body;
+        parseRequest->name = malloc(sizeOfBuffer);
+        strcpy(parseRequest->name, buffer);
+
+        free(body);
     }
-    return NULL;
-}
-
-void ParseName(parse_t* parseRequest, char* body)
-{
-    int i = 0;
-    size_t sizeOfBody = strlen(body);
-    while(i != sizeOfBody)
-    {
-        if(body[i] == ' ')
-        {
-            break;
-        }
-        i++;
-    }
-
-    i++;
-
-    char buffer[1024] = "\0";
-    int j = 0;
-    while(i < sizeOfBody)
-    {
-        if(body[i] == '"')
-        {
-            break;
-        }
-        
-        buffer[j] = body[i];
-        i++;
-        j++;
-    }
-    size_t sizeOfBuffer = strlen(buffer);
-
-    parseRequest->name = malloc(sizeOfBuffer + 1);
-    strcat(parseRequest->name, buffer);
-    free(body);
-    //printf("name:\n%s\n", parseRequest->name);
 }
 
 
 int MethodID(parse_t* ParseRequest)
 {
+    printf("\nI am in Method ID\n");
     if(strcmp(ParseRequest->method, "GET") == 0)
     {
+        printf("\nI am in Method ID GET\n");
         return 0;
     }
     if(strcmp(ParseRequest->method, "POST") == 0)
     {
+        printf("\nI am in Method ID POST\n");
         return 1;
     }
     if(strcmp(ParseRequest->method, "PUT") == 0)
@@ -190,11 +202,13 @@ task_t* Post (int socketClient, parse_t* parseRequest, task_t* head)
 {
     if(head == NULL)
     {
+        
         head = (task_t*)malloc(sizeof(task_t));
         head->id = 0;
 
-        head->name = (char*)malloc(strlen(parseRequest->name) * sizeof(char) + 1);
-        head->name = parseRequest->name;
+        head->name = malloc(strlen(parseRequest->name));
+        strcpy(head->name, parseRequest->name);
+
         head->nextTask = NULL;
         
         SendResponse(socketClient, BuildResponse(1));
@@ -227,7 +241,7 @@ void Get(int socketClient, task_t* head, parse_t* parseRequest)
         SendResponse(socketClient, BuildResponse(0));
         return;
     }
-
+    printf("GET != NULL");
     task_t* pointer = head;
     size_t sizeOfNames = 0;
     while(pointer != NULL)
@@ -240,6 +254,8 @@ void Get(int socketClient, task_t* head, parse_t* parseRequest)
 
 task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest)
 {
+    printf("I am in MethodInterractive");
+
     switch (MethodID(parseRequest))
     {
         case 0:
@@ -276,14 +292,14 @@ char* BuildResponse(int id)
 
     if(id == 0)
     {
-        char* charSizeEmptyTask = (char*)malloc(sizeOfEmptyTask * sizeof(char) + 1);
+        char* charSizeEmptyTask = malloc(sizeOfEmptyTask + 1);
         sprintf(charSizeEmptyTask, "%ld", sizeOfEmptyTask);
 
         strcat(length, charSizeEmptyTask);
         strcat(length, lineBreak);
         
         size_t sizeOfrequest = sizeOfStatus200 + sizeOfType + sizeOfLength + sizeOfConnection + sizeOfLineBreak + sizeOfEmptyTask;
-        char* buildedResponse = (char*)malloc(sizeOfrequest * sizeof(char) + 1);
+        char* buildedResponse = malloc(sizeOfrequest + 1);
 
         strcat(buildedResponse, status);
         strcat(buildedResponse, type);
@@ -299,13 +315,13 @@ char* BuildResponse(int id)
     if(id == 1)
     {
         size_t sizeOfrequest = sizeOfStatus200 + sizeOfConnection + sizeOfLineBreak;
-        char* buildedResponse = (char*)malloc(sizeOfrequest * sizeof(char));
+        char* buildedResponse = (char*)malloc(sizeOfrequest + 1);
 
         strcat(buildedResponse, status);
         strcat(buildedResponse, connection);
         strcat(buildedResponse, lineBreak);
 
-        printf("FULL REPONSE\n%s \n", buildedResponse); //show full response
+        //printf("\nFull response\n%s \n", buildedResponse); //show full response
         return buildedResponse;
     }
     return NULL;
@@ -313,7 +329,10 @@ char* BuildResponse(int id)
 
 void SendResponse(int clientSocket, char* buildedResponse)
 {   
-    size_t sizeOfBuildedResponse = strlen(buildedResponse);
+    char buffer[1024] = "\0";
+    strcpy(buffer, buildedResponse);
+    size_t sizeOfBuildedResponse = strlen(buffer);
+
     char response[sizeOfBuildedResponse];
     unsigned i = 0;
     while(i != sizeOfBuildedResponse)
@@ -321,7 +340,7 @@ void SendResponse(int clientSocket, char* buildedResponse)
         response[i] = buildedResponse[i];
         i++;
     }
-    printf("REPONSE IN SENDRESPONSE\n%s\n", response);
+    printf("\nResponse in SendResponse\n%s\n", response);
 
     send(clientSocket, response, sizeof(response), 0);
     free(buildedResponse);
