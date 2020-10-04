@@ -241,13 +241,14 @@ void Get(int socketClient, task_t* head, parse_t* parseRequest)
     task_t* pointer = head;
 
     char* buildedNames = NULL;
-    while(pointer->nextTask != NULL)
+    while(pointer != NULL)
     {
+        buildedNames = BuildNames(buildedNames, pointer);
         pointer = pointer->nextTask;
     }
-    SendResponse(socketClient, BuildResponse(2, BuildNames(buildedNames, pointer)));
+    SendResponse(socketClient, BuildResponse(2, buildedNames));
 
-    //printf("buildedNames %s\n", buildedNames);
+    printf("\n\nbuildedNames\n %s\n\n", buildedNames);
 }
 
 task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest)
@@ -384,26 +385,42 @@ char* BuildNames(char* buildedNames, task_t* pointer)
     char space[] = " ";
     size_t sizeOfSpace = strlen(space);
 
-    char* charId = malloc(id + 1);
+    char* charId = calloc(id + 1, sizeof(char));
     sprintf(charId, "%d", id);
     size_t sizeOfCharId = strlen(charId);
 
-    char* fullResponseId = malloc(sizeOfRersosnseId + sizeOfCharId + 1);
+    char* fullResponseId = calloc(sizeOfRersosnseId + sizeOfCharId + 1, sizeof(char));
     strcat(fullResponseId, responseId);
     strcat(fullResponseId, charId);
     size_t sizeOfFullResponseId = strlen(fullResponseId);
 
-    char* fullResponseName = malloc(sizeOfRersosnseName + sizeOfName + 1);
+    char* fullResponseName = calloc(sizeOfRersosnseName + sizeOfName + 1, sizeof(char));
+
     strcat(fullResponseName, responseName);
     strcat(fullResponseName, name);
     size_t sizeOfFullResponseName = strlen(fullResponseName);
 
-
-    buildedNames = malloc(sizeOfFullResponseId + sizeOfSpace + sizeOfFullResponseName + sizeOfBreakLine + 1);
+    if(buildedNames == NULL)
+    {
+        buildedNames = calloc(sizeOfFullResponseId + sizeOfSpace + sizeOfFullResponseName + sizeOfBreakLine + 1, sizeof(char));
+    }
+    else
+    {
+        size_t sizeOfBuildedNames = strlen(buildedNames);
+        char* bufferBuildedNames = calloc(sizeOfBuildedNames + sizeOfFullResponseId + sizeOfSpace + sizeOfFullResponseName + sizeOfBreakLine + 1, sizeof(char));
+        strcat(bufferBuildedNames, buildedNames);
+        free(buildedNames);
+        buildedNames = bufferBuildedNames;
+    }
+    
     strcat(buildedNames, fullResponseId);
     strcat(buildedNames, space);
     strcat(buildedNames, fullResponseName);
     strcat(buildedNames, breakLine);
+    
+    free(charId);
+    free(fullResponseId);
+    free(fullResponseName);
     
     return buildedNames;
 }
