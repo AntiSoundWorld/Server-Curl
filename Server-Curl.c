@@ -394,11 +394,14 @@ char* BuildNames(char* buildedNames, task_t* pointer)
     sprintf(charId, "%d", id);
     size_t sizeOfCharId = strlen(charId);
 
-    char openedBracket = '{';
+    char openedBracket[] = "{";
+    size_t sizeOfOpenedBracket = strlen(openedBracket);
 
-    char closedBracket = '}';
+    char closedBracket[] = "}";
+    size_t sizeOfClosedBracket = strlen(closedBracket);
 
-    char colon = '"';
+    char colon[] = "\"";
+    size_t sizeOfColon = strlen(colon);
     
 
 
@@ -415,25 +418,28 @@ char* BuildNames(char* buildedNames, task_t* pointer)
 
     if(buildedNames == NULL)
     {
-        size_t sizeOfBuiledNames = openedBracket + colon + sizeOfFullResponseId + sizeOfSpace + sizeOfFullResponseName + sizeOfBreakLine + colon + closedBracket + 1;
+        size_t sizeOfBuiledNames = sizeOfOpenedBracket + sizeOfColon + sizeOfFullResponseId + sizeOfSpace + sizeOfFullResponseName + sizeOfBreakLine + sizeOfColon + sizeOfClosedBracket + 1;
         buildedNames = calloc(sizeOfBuiledNames, sizeof(char));
     }
     else
     {
         size_t sizeOfBuildedNames = strlen(buildedNames);
 
-        size_t sizeOfBufferBuildedNames = sizeOfBuildedNames + openedBracket + colon + sizeOfFullResponseId + sizeOfSpace + sizeOfFullResponseName + sizeOfBreakLine + colon + closedBracket + 1;
+        size_t sizeOfBufferBuildedNames = sizeOfBuildedNames + sizeOfOpenedBracket + sizeOfColon + sizeOfFullResponseId + sizeOfSpace + sizeOfFullResponseName + sizeOfBreakLine + sizeOfColon + sizeOfClosedBracket + 1;
         char* bufferBuildedNames = calloc(sizeOfBufferBuildedNames, sizeof(char));
         strcat(bufferBuildedNames, buildedNames);
 
         free(buildedNames);
-        
+
         buildedNames = bufferBuildedNames;
     }
-    
+    strcat(buildedNames, openedBracket);
+    strcat(buildedNames, colon);
     strcat(buildedNames, fullResponseId);
     strcat(buildedNames, space);
     strcat(buildedNames, fullResponseName);
+    strcat(buildedNames, colon);
+    strcat(buildedNames, closedBracket);
     strcat(buildedNames, breakLine);
     
     free(charId);
