@@ -28,6 +28,7 @@ int MethodID(parse_t* parseRequest);
 task_t* Post (int socketClient, parse_t* parseRequest, task_t* node);
 task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest);
 void Get(int socketClient, task_t* head, parse_t* ParseRequest);
+char* BuildNames(char* buildNames, task_t* pointer);
 char* BuildResponse(int id, char* names);
 void SendResponse(int clientSocket, char* request);
 
@@ -212,7 +213,7 @@ task_t* Post (int socketClient, parse_t* parseRequest, task_t* head)
         return head;
     }
 
-    static int i = 0;
+    static int i = 1;
 
     task_t* pointer = head;
     while(pointer->nextTask != NULL)
@@ -239,28 +240,14 @@ void Get(int socketClient, task_t* head, parse_t* parseRequest)
     }
     task_t* pointer = head;
 
-    size_t sizeOfNames = 0;
-
-    while(pointer != NULL)
+    char* buildedNames = NULL;
+    while(pointer->nextTask != NULL)
     {
-        sizeOfNames = sizeOfNames + strlen(pointer->name);
-        sizeOfNames = sizeOfNames + 1;
         pointer = pointer->nextTask;
     }
+    SendResponse(socketClient, BuildResponse(2, BuildNames(buildedNames, pointer)));
 
-    char* bufferOfNames = malloc(sizeOfNames + 1);
-
-    pointer = head;
-    while(pointer != NULL)
-    {
-        strcat(bufferOfNames, pointer->name);
-        strcat(bufferOfNames, "\n");
-        pointer = pointer->nextTask;
-    }
-
-    SendResponse(socketClient, BuildResponse(2, bufferOfNames));
-
-    printf("sizeOfNames %ld\n", sizeOfNames);
+    //printf("buildedNames %s\n", buildedNames);
 }
 
 task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest)
@@ -303,15 +290,17 @@ char* BuildResponse(int id, char* names)
         char* charSizeEmptyTask = malloc(sizeOfEmptyTask + 1);
         sprintf(charSizeEmptyTask, "%ld", sizeOfEmptyTask);
 
-        strcat(length, charSizeEmptyTask);
-        strcat(length, lineBreak);
+        char* ContentLength = malloc(sizeOfLength + sizeOfEmptyTask + sizeOfLineBreak + 1); 
+        strcat(ContentLength, length);
+        strcat(ContentLength, charSizeEmptyTask);
+        strcat(ContentLength, lineBreak);
         
         size_t sizeOfrequest = sizeOfStatus200 + sizeOfType + sizeOfLength + sizeOfConnection + sizeOfLineBreak + sizeOfEmptyTask;
         char* buildedResponse = malloc(sizeOfrequest + 1);
 
         strcat(buildedResponse, status);
         strcat(buildedResponse, type);
-        strcat(buildedResponse, length);
+        strcat(buildedResponse, ContentLength);
         strcat(buildedResponse, connection);
         strcat(buildedResponse, lineBreak);
         strcat(buildedResponse, bodyEmptyTask);
@@ -374,4 +363,47 @@ void SendResponse(int clientSocket, char* buildedResponse)
 
     send(clientSocket, response, sizeof(response), 0);
     free(buildedResponse);
+}
+
+char* BuildNames(char* buildedNames, task_t* pointer)
+{
+    int id = pointer->id;
+
+    char* name = pointer->name;
+    size_t sizeOfName = strlen(name);
+
+    char responseId[] = "Id: ";
+    size_t sizeOfRersosnseId = strlen(responseId);
+
+    char responseName[] = "name: ";
+    size_t sizeOfRersosnseName = strlen(responseName);
+
+    char breakLine[] = "\n";
+    size_t sizeOfBreakLine = strlen(breakLine);
+
+    char space[] = " ";
+    size_t sizeOfSpace = strlen(space);
+
+    char* charId = malloc(id + 1);
+    sprintf(charId, "%d", id);
+    size_t sizeOfCharId = strlen(charId);
+
+    char* fullResponseId = malloc(sizeOfRersosnseId + sizeOfCharId + 1);
+    strcat(fullResponseId, responseId);
+    strcat(fullResponseId, charId);
+    size_t sizeOfFullResponseId = strlen(fullResponseId);
+
+    char* fullResponseName = malloc(sizeOfRersosnseName + sizeOfName + 1);
+    strcat(fullResponseName, responseName);
+    strcat(fullResponseName, name);
+    size_t sizeOfFullResponseName = strlen(fullResponseName);
+
+
+    buildedNames = malloc(sizeOfFullResponseId + sizeOfSpace + sizeOfFullResponseName + sizeOfBreakLine + 1);
+    strcat(buildedNames, fullResponseId);
+    strcat(buildedNames, space);
+    strcat(buildedNames, fullResponseName);
+    strcat(buildedNames, breakLine);
+    
+    return buildedNames;
 }
