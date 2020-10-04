@@ -378,10 +378,10 @@ char* BuildNames(char* buildedNames, task_t* pointer)
     char* name = pointer->name;
     size_t sizeOfName = strlen(name);
 
-    char responseId[] = "Id: ";
+    char responseId[] = "Id";
     size_t sizeOfRersosnseId = strlen(responseId);
 
-    char responseName[] = "name: ";
+    char responseName[] = "name";
     size_t sizeOfRersosnseName = strlen(responseName);
 
     char breakLine[] = "\n";
@@ -400,32 +400,52 @@ char* BuildNames(char* buildedNames, task_t* pointer)
     char closedBracket[] = "}";
     size_t sizeOfClosedBracket = strlen(closedBracket);
 
-    char colon[] = "\"";
+    char quotes[] = "\"";
+    size_t sizeOfQuotes = strlen(quotes);
+
+    char colon[] = ":";
     size_t sizeOfColon = strlen(colon);
+
+    char comma[] = ",";
+    size_t sizeOfComma = strlen(comma);
     
 
+    char* fullResponseId = calloc(sizeOfQuotes + sizeOfRersosnseId + sizeOfQuotes + sizeOfColon + sizeOfSpace + sizeOfQuotes + sizeOfCharId + sizeOfQuotes + 1, sizeof(char));
 
-    char* fullResponseId = calloc(sizeOfRersosnseId + sizeOfCharId + 1, sizeof(char));
+    strcat(fullResponseId, quotes);
     strcat(fullResponseId, responseId);
+    strcat(fullResponseId, quotes);
+    strcat(fullResponseId, colon);
+    strcat(fullResponseId, space);
+    strcat(fullResponseId, quotes);
     strcat(fullResponseId, charId);
+    strcat(fullResponseId, quotes);
+    
     size_t sizeOfFullResponseId = strlen(fullResponseId);
 
-    char* fullResponseName = calloc(sizeOfRersosnseName + sizeOfName + 1, sizeof(char));
+    char* fullResponseName = calloc(sizeOfQuotes + sizeOfRersosnseName + sizeOfQuotes + sizeOfColon + sizeOfSpace + sizeOfComma + sizeOfName + sizeOfComma + 1, sizeof(char));
 
+    strcat(fullResponseName, quotes);
     strcat(fullResponseName, responseName);
+    strcat(fullResponseName, quotes);
+    strcat(fullResponseName, colon);
+    strcat(fullResponseName, space);
+    strcat(fullResponseName, quotes);
     strcat(fullResponseName, name);
+    strcat(fullResponseName, quotes);
+    
     size_t sizeOfFullResponseName = strlen(fullResponseName);
 
     if(buildedNames == NULL)
     {
-        size_t sizeOfBuiledNames = sizeOfOpenedBracket + sizeOfColon + sizeOfFullResponseId + sizeOfSpace + sizeOfFullResponseName + sizeOfBreakLine + sizeOfColon + sizeOfClosedBracket + 1;
+        size_t sizeOfBuiledNames = sizeOfOpenedBracket + sizeOfFullResponseId + sizeOfFullResponseName + sizeOfClosedBracket + sizeOfBreakLine + 1;
         buildedNames = calloc(sizeOfBuiledNames, sizeof(char));
     }
     else
     {
         size_t sizeOfBuildedNames = strlen(buildedNames);
 
-        size_t sizeOfBufferBuildedNames = sizeOfBuildedNames + sizeOfOpenedBracket + sizeOfColon + sizeOfFullResponseId + sizeOfSpace + sizeOfFullResponseName + sizeOfBreakLine + sizeOfColon + sizeOfClosedBracket + 1;
+        size_t sizeOfBufferBuildedNames = sizeOfBuildedNames + sizeOfOpenedBracket + sizeOfFullResponseId + sizeOfComma  + sizeOfSpace + sizeOfFullResponseName + sizeOfClosedBracket + sizeOfBreakLine + 1;
         char* bufferBuildedNames = calloc(sizeOfBufferBuildedNames, sizeof(char));
         strcat(bufferBuildedNames, buildedNames);
 
@@ -434,11 +454,10 @@ char* BuildNames(char* buildedNames, task_t* pointer)
         buildedNames = bufferBuildedNames;
     }
     strcat(buildedNames, openedBracket);
-    strcat(buildedNames, colon);
     strcat(buildedNames, fullResponseId);
+    strcat(buildedNames, comma);
     strcat(buildedNames, space);
     strcat(buildedNames, fullResponseName);
-    strcat(buildedNames, colon);
     strcat(buildedNames, closedBracket);
     strcat(buildedNames, breakLine);
     
