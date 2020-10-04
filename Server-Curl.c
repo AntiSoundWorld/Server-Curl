@@ -288,16 +288,16 @@ char* BuildResponse(int id, char* names)
 
     if(id == 0)
     {
-        char* charSizeEmptyTask = malloc(sizeOfEmptyTask + 1);
+        char* charSizeEmptyTask = calloc(sizeOfEmptyTask + 1, sizeof(char));
         sprintf(charSizeEmptyTask, "%ld", sizeOfEmptyTask);
 
-        char* ContentLength = malloc(sizeOfLength + sizeOfEmptyTask + sizeOfLineBreak + 1); 
+        char* ContentLength = calloc(sizeOfLength + sizeOfEmptyTask + sizeOfLineBreak + 1, sizeof(char)); 
         strcat(ContentLength, length);
         strcat(ContentLength, charSizeEmptyTask);
         strcat(ContentLength, lineBreak);
         
         size_t sizeOfrequest = sizeOfStatus200 + sizeOfType + sizeOfLength + sizeOfConnection + sizeOfLineBreak + sizeOfEmptyTask;
-        char* buildedResponse = malloc(sizeOfrequest + 1);
+        char* buildedResponse = calloc(sizeOfrequest + 1, sizeof(char));
 
         strcat(buildedResponse, status);
         strcat(buildedResponse, type);
@@ -308,12 +308,14 @@ char* BuildResponse(int id, char* names)
 
         //printf("%s \n", buildedResponse); //show full response
         free(charSizeEmptyTask);
+        free(ContentLength);
+
         return buildedResponse;
     }
     if(id == 1)
     {
-        size_t sizeOfrequest = sizeOfStatus200 + sizeOfConnection + sizeOfLineBreak;
-        char* buildedResponse = (char*)malloc(sizeOfrequest + 1);
+        size_t sizeOfrequest = sizeOfStatus200 + sizeOfConnection + sizeOfLineBreak + 1;
+        char* buildedResponse = calloc(sizeOfrequest, sizeof(char));
 
         strcat(buildedResponse, status);
         strcat(buildedResponse, connection);
@@ -325,19 +327,22 @@ char* BuildResponse(int id, char* names)
     if(id == 2)
     {
         size_t sizeOfNames = strlen(names);
-        size_t sizeOfResponse = sizeOfStatus200 + sizeOfType + sizeOfLength + sizeOfConnection + sizeOfLineBreak + sizeOfNames;
 
-        char* charSizeOfNames = malloc(sizeOfNames);
+        char* charSizeOfNames = calloc(sizeOfNames, sizeof(char));
         sprintf(charSizeOfNames, "%ld", sizeOfNames);
 
-        strcat(length, charSizeOfNames);
-        strcat(length, lineBreak);
+        char* ContentLength = calloc(sizeOfLength + sizeOfNames + sizeOfLineBreak + 1, sizeof(char));
+        strcat(ContentLength, length);
+        strcat(ContentLength, charSizeOfNames);
+        strcat(ContentLength, lineBreak);
+        size_t sizeOfContentLength = strlen(ContentLength);
 
-        char* buildedResponse = malloc(sizeOfResponse + 1);
+        size_t sizeOfResponse = sizeOfStatus200 + sizeOfType + sizeOfContentLength + sizeOfConnection + sizeOfLineBreak + sizeOfNames + 1;
+        char* buildedResponse = calloc(sizeOfResponse, sizeof(char));
        
         strcat(buildedResponse, status);
         strcat(buildedResponse, type);
-        strcat(buildedResponse, length);
+        strcat(buildedResponse, ContentLength);
         strcat(buildedResponse, connection);
         strcat(buildedResponse, lineBreak);
         strcat(buildedResponse, names);
@@ -389,6 +394,14 @@ char* BuildNames(char* buildedNames, task_t* pointer)
     sprintf(charId, "%d", id);
     size_t sizeOfCharId = strlen(charId);
 
+    char openedBracket = '{';
+
+    char closedBracket = '}';
+
+    char colon = '"';
+    
+
+
     char* fullResponseId = calloc(sizeOfRersosnseId + sizeOfCharId + 1, sizeof(char));
     strcat(fullResponseId, responseId);
     strcat(fullResponseId, charId);
@@ -402,14 +415,19 @@ char* BuildNames(char* buildedNames, task_t* pointer)
 
     if(buildedNames == NULL)
     {
-        buildedNames = calloc(sizeOfFullResponseId + sizeOfSpace + sizeOfFullResponseName + sizeOfBreakLine + 1, sizeof(char));
+        size_t sizeOfBuiledNames = openedBracket + colon + sizeOfFullResponseId + sizeOfSpace + sizeOfFullResponseName + sizeOfBreakLine + colon + closedBracket + 1;
+        buildedNames = calloc(sizeOfBuiledNames, sizeof(char));
     }
     else
     {
         size_t sizeOfBuildedNames = strlen(buildedNames);
-        char* bufferBuildedNames = calloc(sizeOfBuildedNames + sizeOfFullResponseId + sizeOfSpace + sizeOfFullResponseName + sizeOfBreakLine + 1, sizeof(char));
+
+        size_t sizeOfBufferBuildedNames = sizeOfBuildedNames + openedBracket + colon + sizeOfFullResponseId + sizeOfSpace + sizeOfFullResponseName + sizeOfBreakLine + colon + closedBracket + 1;
+        char* bufferBuildedNames = calloc(sizeOfBufferBuildedNames, sizeof(char));
         strcat(bufferBuildedNames, buildedNames);
+
         free(buildedNames);
+        
         buildedNames = bufferBuildedNames;
     }
     
