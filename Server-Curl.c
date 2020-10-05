@@ -10,6 +10,7 @@ typedef struct Parse
     char* request;
     char* method;
     char* name;
+    int id;
 }parse_t;
 
 typedef struct Task
@@ -24,6 +25,7 @@ parse_t* Recieve(int clientSocket, parse_t* parseRequest);
 parse_t* ParseMethod(parse_t* parseRequest);
 char* IsolateBody(parse_t* parseRequest);
 void ParseName(parse_t* parseRequest);
+parse_t* ParseId(int socketClient, parse_t* parseRequest);
 int MethodID(parse_t* parseRequest);
 task_t* Post (int socketClient, parse_t* parseRequest, task_t* node);
 task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest);
@@ -31,7 +33,7 @@ void Get(int socketClient, task_t* head, parse_t* ParseRequest);
 char* BuildNames(char* buildNames, task_t* pointer);
 char* BuildResponse(int id, char* names);
 void SendResponse(int clientSocket, char* request);
-
+void Delete(int clientSocket, task_t* head);
 int main()
 {
     SetSocket();
@@ -56,7 +58,8 @@ void SetSocket()
 
         parse_t* parseRequest = (parse_t *)malloc(sizeof(parse_t));
 
-        ParseName(ParseMethod(Recieve(clientSocket, parseRequest)));
+        ParseName(ParseId(clientSocket, ParseMethod(Recieve(clientSocket, parseRequest))));
+       
 
         head = MethodInterractive(clientSocket, head, parseRequest);
 
@@ -135,42 +138,67 @@ char* IsolateBody(parse_t* parseRequest)
 
 void ParseName(parse_t* parseRequest)
 {
-    if(strcmp(parseRequest->method, "POST") == 0)
+    char* body = IsolateBody(parseRequest);
+    size_t sizeOfBody = strlen(body);
+
+    int i = 0;
+
+    if(strcmp(parseRequest->method, "DELETE") == 0 || strcmp(parseRequest->method, "UPDATE") == 0)
     {
-        char* body = IsolateBody(parseRequest);
-        int i = 0;
-        size_t sizeOfBody = strlen(body);
-        while(i != sizeOfBody)
+        while(i != ',')
         {
-            if(body[i] == ' ')
-            {
-                break;
-            }
             i++;
         }
-
-        i++;
-
-        char buffer[1024] = "\0";
-        int j = 0;
-        while(i < sizeOfBody)
-        {
-            if(body[i] == '"')
-            {
-                break;
-            }
-            
-            buffer[j] = body[i];
-            i++;
-            j++;
-        }
-        size_t sizeOfBuffer = strlen(buffer);
-
-        parseRequest->name = malloc(sizeOfBuffer);
-        strcpy(parseRequest->name, buffer);
-
-        free(body);
     }
+    
+    while(i != sizeOfBody)
+    {
+        if(body[i] == ':')
+        {
+            break;
+        }
+        i++;
+    }
+
+    while(i != sizeOfBody)
+    {
+        if(body[i] == '\"')
+        {
+            break;
+        }
+        i++;
+    }
+
+    i++;
+    
+    char buffer[1024] = "\0";
+    int j = 0;
+    while(i < sizeOfBody)
+    {
+        if(body[i] == '"')
+        {
+            break;
+        }
+        
+        buffer[j] = body[i];
+        i++;
+        j++;
+    }
+    size_t sizeOfBuffer = strlen(buffer);
+
+    parseRequest->name = malloc(sizeOfBuffer);
+    strcpy(parseRequest->name, buffer);
+
+    free(body);
+}
+
+parse_t* ParseId(int socketClient, parse_t* parseRequest)
+{
+    if(strcmp(parseRequest->method, "DELETE") == 0)
+    {
+        SendResponse(socketClient, BuildResponse(1, NULL));
+    }
+    return parseRequest;
 }
 
 
@@ -248,7 +276,7 @@ void Get(int socketClient, task_t* head, parse_t* parseRequest)
     }
     SendResponse(socketClient, BuildResponse(2, buildedNames));
 
-    printf("\n\nbuildedNames\n %s\n\n", buildedNames);
+    //printf("\n\nbuildedNames\n %s\n\n", buildedNames);
 }
 
 task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest)
@@ -260,6 +288,8 @@ task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest
             break;
         case 1:
             return Post(socketClient, parseRequest, head);
+        case 3:
+            Delete(socketClient, head);
             break;
     }
     return head;
@@ -365,7 +395,7 @@ void SendResponse(int clientSocket, char* buildedResponse)
         response[i] = buildedResponse[i];
         i++;
     }
-    printf("\nResponse in SendResponse\n%s\n", response);
+    //printf("\nResponse in SendResponse\n%s\n", response);
 
     send(clientSocket, response, sizeof(response), 0);
     free(buildedResponse);
@@ -466,4 +496,9 @@ char* BuildNames(char* buildedNames, task_t* pointer)
     free(fullResponseName);
     
     return buildedNames;
+}
+
+void Delete(int socketClient, task_t* head)
+{
+   
 }
