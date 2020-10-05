@@ -10,7 +10,6 @@ typedef struct Parse
     char* request;
     char* method;
     char* name;
-    int id;
 }parse_t;
 
 typedef struct Task
@@ -22,18 +21,19 @@ typedef struct Task
 
 void SetSocket();
 parse_t* Recieve(int clientSocket, parse_t* parseRequest);
-parse_t * ParseMethod(parse_t* parseRequest);
+parse_t* ParseMethod(parse_t* parseRequest);
 char* IsolateBody(parse_t* parseRequest);
-void ParseName(parse_t* parseRequest);
-parse_t* ParseId(int socketClient, parse_t* parseRequest);
+parse_t* ParseName(parse_t* parseRequest);
+int ParseId(parse_t* parseRequest);
 int MethodID(parse_t* parseRequest);
-task_t* Post (int socketClient, parse_t* parseRequest, task_t* node);
+task_t* Create (int socketClient, parse_t* parseRequest, task_t* node);
 task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest);
-void Get(int socketClient, task_t* head, parse_t* ParseRequest);
+void Read(int socketClient, task_t* head, parse_t* ParseRequest);
 char* BuildNames(char* buildNames, task_t* pointer);
 char* BuildResponse(int id, char* names);
 void SendResponse(int clientSocket, char* request);
-void Delete(int clientSocket, task_t* head, parse_t* ParseRequest);
+void Update(int clientSocket, task_t* head, parse_t* ParseRequest);
+task_t* Delete(int socketClient, task_t* head, parse_t* parseRequest);
 
 int main()
 {
@@ -59,8 +59,7 @@ void SetSocket()
 
         parse_t* parseRequest = (parse_t *)malloc(sizeof(parse_t));
 
-        Recieve(clientSocket, parseRequest);
-       
+        ParseId(ParseName(ParseMethod(Recieve(clientSocket, parseRequest))));
 
         head = MethodInterractive(clientSocket, head, parseRequest);
 
@@ -79,11 +78,11 @@ parse_t* Recieve(int clientSocket, parse_t* parseRequest)
     parseRequest->request = malloc(sizeOfBuffer);
     strcpy(parseRequest->request, buffer);
 
+    printf("\nRequest:\n %s\n ", parseRequest->request);  //show full request
     return parseRequest;
-    //printf("Request:\n %s\n ", parseRequest->request);  //show full request and size
 }
 
-parse_t * ParseMethod(parse_t* parseRequest)
+parse_t* ParseMethod(parse_t* parseRequest)
 {
     char* request = parseRequest->request;
     char buffer[100] = "\0";
@@ -137,14 +136,14 @@ char* IsolateBody(parse_t* parseRequest)
     return body;
 }
 
-void ParseName(parse_t* parseRequest)
+parse_t* ParseName(parse_t* parseRequest)
 {
     char* body = IsolateBody(parseRequest);
     size_t sizeOfBody = strlen(body);
 
     int i = 0;
 
-    if(strcmp(parseRequest->method, "DELETE") == 0 || strcmp(parseRequest->method, "UPDATE") == 0)
+    if(strcmp(parseRequest->method, "DELETE") == 0 || strcmp(parseRequest->method, "PUT") == 0)
     {
         while(i != sizeOfBody)
         {
@@ -194,58 +193,57 @@ void ParseName(parse_t* parseRequest)
     parseRequest->name = malloc(sizeOfBuffer);
     strcpy(parseRequest->name, buffer);
 
+    printf("\n\nname %s\n\n", parseRequest->name);
     free(body);
-}
-
-parse_t* ParseId(int socketClient, parse_t* parseRequest)
-{
-    if(strcmp(parseRequest->method, "DELETE") == 0)
-    {
-        char* body = IsolateBody(parseRequest);
-        size_t sizeOfBody = strlen(body);
-        
-        int i = 0;
-        char buffer[1024] = "\0";
-        while(i < sizeOfBody)
-        {
-            if(body[i] == ',')
-            {
-                break;
-            }
-            buffer[i] = body[i];
-            i++; 
-        }
-
-        i = 0;
-        
-        size_t sizeOfBuffer = strlen(buffer);
-        while(i < sizeOfBuffer)
-        {
-            if(buffer[i] == ':')
-            {
-                break;
-            }
-        }
-
-        while(i < sizeOfBuffer)
-        {
-            if(buffer[i] == '\"')
-            i++;
-        }
-
-        char bufferId[1024] = "\0";
-        int j = 0;
-        while(i < sizeOfBuffer)
-        {
-            bufferId[j] = buffer[i];
-        }
-
-        printf("charId %s", bufferId);
-
-    }
     return parseRequest;
 }
 
+int ParseId(parse_t* parseRequest)
+{
+    char* body = IsolateBody(parseRequest);
+    size_t sizeOfBody = strlen(body);
+    
+    int i = 0;
+    while(i < sizeOfBody)
+    {
+        if(body[i] == ':')
+        {
+            break;
+        }
+        i++;
+    }
+
+    while(i < sizeOfBody)
+    {
+        if(body[i] == '\"')
+        {
+            break;
+        }
+        i++;
+    }
+
+    i++;
+    char buffer[1024] = "\0";
+    int j = 0;
+    while(i < sizeOfBody)
+    {
+        if(body[i] == '\"')
+        {
+            break;
+        }
+        buffer[j] = body[i];
+        i++;
+        j++;
+    }
+
+    size_t sizeOfBuffer = strlen(buffer);
+    char* charId = calloc(sizeOfBuffer + 1, sizeof(char));
+    strcat(charId, buffer);
+    int id = atoi(charId);
+
+    //printf("\n\nId %d\n\n", id);
+    return id;
+}
 
 int MethodID(parse_t* ParseRequest)
 {
@@ -269,9 +267,8 @@ int MethodID(parse_t* ParseRequest)
     return -1;
 }
 
-task_t* Post (int socketClient, parse_t* parseRequest, task_t* head)
+task_t* Create (int socketClient, parse_t* parseRequest, task_t* head)
 {
-    ParseName(parseRequest);
 
     if(head == NULL)
     {
@@ -306,7 +303,7 @@ task_t* Post (int socketClient, parse_t* parseRequest, task_t* head)
     return head;
 }
 
-void Get(int socketClient, task_t* head, parse_t* parseRequest)
+void Read(int socketClient, task_t* head, parse_t* parseRequest)
 {
     if(head == NULL)
     {   
@@ -326,18 +323,42 @@ void Get(int socketClient, task_t* head, parse_t* parseRequest)
     //printf("\n\nbuildedNames\n %s\n\n", buildedNames);
 }
 
+void Update(int socketClient, task_t* head, parse_t* parseRequest)
+{
+    if(head == NULL)
+    {
+        SendResponse(socketClient, BuildResponse(0, NULL));
+        return;
+    }
+    task_t* pointer = head;
+
+    int id = ParseId(parseRequest);
+
+    while(pointer->id != id)
+    {
+        pointer = pointer->nextTask;
+    }
+    free(pointer->name);
+    pointer->name = calloc(strlen(parseRequest->name) + 1, sizeof(char));
+    strcat(pointer->name, parseRequest->name);
+
+    SendResponse(socketClient, BuildResponse(1, NULL));
+}
+
 task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest)
 {
     switch (MethodID(ParseMethod(parseRequest)))
     {
         case 0:
-            Get(socketClient, head, parseRequest);
+            Read(socketClient, head, parseRequest);
             break;
         case 1:
-            return Post(socketClient, parseRequest, head);
-        case 3:
-            Delete(socketClient, head, parseRequest);
+            return Create(socketClient, parseRequest, head);
+        case 2:
+            Update(socketClient, head, parseRequest);
             break;
+        case 3:
+            return Delete(socketClient, head, parseRequest);
     }
     return head;
 }
@@ -545,8 +566,34 @@ char* BuildNames(char* buildedNames, task_t* pointer)
     return buildedNames;
 }
 
-void Delete(int socketClient, task_t* head, parse_t* parseRequest)
+task_t* Delete(int socketClient, task_t* head, parse_t* parseRequest)
 {
-    ParseId(socketClient, parseRequest);
-    SendResponse(socketClient, BuildResponse(1, NULL));
+    task_t* pointer = head;
+    int id = ParseId(parseRequest);
+
+    if(id == 0)
+    {
+        head = pointer->nextTask;
+        free(pointer);
+        pointer = head;
+    }
+    else
+    {
+        while(pointer->nextTask->id != id)
+        {
+            pointer = pointer->nextTask;
+        }
+        task_t* deleteTask = pointer->nextTask;
+        pointer->nextTask = deleteTask->nextTask;
+        free(deleteTask);
+        pointer = pointer->nextTask;
+    }
+
+    while(pointer != NULL)
+    {
+        pointer->id = pointer->id - 1;
+        pointer = pointer->nextTask;
+    }
+
+    return head;
 }
