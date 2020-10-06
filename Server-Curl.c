@@ -269,7 +269,6 @@ int MethodID(parse_t* ParseRequest)
 
 task_t* Create (int socketClient, parse_t* parseRequest, task_t* head)
 {
-
     if(head == NULL)
     {
         head = (task_t*)malloc(sizeof(task_t));
@@ -285,12 +284,13 @@ task_t* Create (int socketClient, parse_t* parseRequest, task_t* head)
         return head;
     }
 
-    static int i = 1;
+    int i = 1;
 
     task_t* pointer = head;
     while(pointer->nextTask != NULL)
     {
         pointer = pointer->nextTask;
+        i++;
     }
 
     pointer->nextTask = (task_t*)malloc(sizeof(task_t));
