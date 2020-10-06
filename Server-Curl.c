@@ -23,7 +23,6 @@ char* ParseMethod(parse_t* parseRequest);
 char* IsolateBody(parse_t* parseRequest);
 int ParseId(parse_t* parseRequest);
 char* ParseName(parse_t* parseRequest);
-int MethodID(parse_t* parseRequest);
 task_t* Create (int socketClient, parse_t* parseRequest, task_t* node);
 task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest);
 void Read(int socketClient, task_t* head, parse_t* ParseRequest);
@@ -135,10 +134,10 @@ char* ParseName(parse_t* parseRequest)
     char* body = IsolateBody(parseRequest);
     size_t sizeOfBody = strlen(body);
 
-    int i = 0;
-
     char* method = ParseMethod(parseRequest);
-    if(strcmp(method, "DELETE") == 0 || strcmp(method, "PUT") == 0)
+
+    int i = 0;
+    if(strcmp(method, "PUT") == 0)
     {
         while(i != sizeOfBody)
         {
@@ -242,46 +241,28 @@ int ParseId(parse_t* parseRequest)
     return id;
 }
 
-int MethodID(parse_t* ParseRequest)
+task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest)
 {
-    char* method = ParseMethod(ParseRequest);
+    char* method = ParseMethod(parseRequest);
+    
     if(strcmp(method, "GET") == 0)
     {
-        return 0;
+        Read(socketClient, head, parseRequest);
     }
     if(strcmp(method, "POST") == 0)
     {
-        return 1;
+        return Create(socketClient, parseRequest, head);
     }
     if(strcmp(method, "PUT") == 0)
     {
-        return 2;
+        Update(socketClient, head, parseRequest);
     }
     if(strcmp(method, "DELETE") == 0)
     {
-        return 3;
+        return Delete(socketClient, head, parseRequest);
     }
     free(method);
-    return -1;
-}
 
-
-
-task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest)
-{
-    switch (MethodID(parseRequest))
-    {
-        case 0:
-            Read(socketClient, head, parseRequest);
-            break;
-        case 1:
-            return Create(socketClient, parseRequest, head);
-        case 2:
-            Update(socketClient, head, parseRequest);
-            break;
-        case 3:
-            return Delete(socketClient, head, parseRequest);
-    }
     return head;
 }
 
@@ -304,7 +285,6 @@ char* BuildResponse(int id, char* names)
 
     char lineBreak[] = "\n";
     size_t sizeOfLineBreak = strlen(lineBreak);
-
 
     if(id == 0)
     {
