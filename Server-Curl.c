@@ -23,7 +23,7 @@ void SetSocket();
 parse_t* Recieve(int clientSocket, parse_t* parseRequest);
 parse_t* ParseMethod(parse_t* parseRequest);
 char* IsolateBody(parse_t* parseRequest);
-parse_t* ParseName(parse_t* parseRequest);
+char* ParseName(parse_t* parseRequest);
 int ParseId(parse_t* parseRequest);
 int MethodID(parse_t* parseRequest);
 task_t* Create (int socketClient, parse_t* parseRequest, task_t* node);
@@ -59,7 +59,7 @@ void SetSocket()
 
         parse_t* parseRequest = (parse_t *)malloc(sizeof(parse_t));
 
-        ParseId(ParseName(ParseMethod(Recieve(clientSocket, parseRequest))));
+        ParseId(ParseMethod(Recieve(clientSocket, parseRequest)));
 
         head = MethodInterractive(clientSocket, head, parseRequest);
 
@@ -136,7 +136,7 @@ char* IsolateBody(parse_t* parseRequest)
     return body;
 }
 
-parse_t* ParseName(parse_t* parseRequest)
+char* ParseName(parse_t* parseRequest)
 {
     char* body = IsolateBody(parseRequest);
     size_t sizeOfBody = strlen(body);
