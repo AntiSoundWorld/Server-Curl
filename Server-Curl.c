@@ -8,8 +8,6 @@
 typedef struct Parse
 {
     char* request;
-    char* method;
-    char* name;
 }parse_t;
 
 typedef struct Task
@@ -21,7 +19,7 @@ typedef struct Task
 
 void SetSocket();
 parse_t* Recieve(int clientSocket, parse_t* parseRequest);
-parse_t* ParseMethod(parse_t* parseRequest);
+char* ParseMethod(parse_t* parseRequest);
 char* IsolateBody(parse_t* parseRequest);
 char* ParseName(parse_t* parseRequest);
 int ParseId(parse_t* parseRequest);
@@ -53,19 +51,16 @@ void SetSocket()
     listen(serverSocket, 1);
 
     task_t* head = NULL;
+    parse_t* parseRequest = (parse_t *)malloc(sizeof(parse_t));
     while(true)
     {
         int clientSocket = accept(serverSocket, NULL, NULL);
 
-        parse_t* parseRequest = (parse_t *)malloc(sizeof(parse_t));
-
-        ParseMethod(Recieve(clientSocket, parseRequest));
+        Recieve(clientSocket, parseRequest);
 
         head = MethodInterractive(clientSocket, head, parseRequest);
 
         free(parseRequest->request);
-
-        free(parseRequest);
     }
 }
 parse_t* Recieve(int clientSocket, parse_t* parseRequest)
@@ -74,14 +69,14 @@ parse_t* Recieve(int clientSocket, parse_t* parseRequest)
     recv(clientSocket, buffer, sizeof(buffer), 0);
     size_t sizeOfBuffer = strlen(buffer);
 
-    parseRequest->request = malloc(sizeOfBuffer);
+    parseRequest->request = calloc(sizeOfBuffer + 1, sizeof(char));
     strcpy(parseRequest->request, buffer);
 
-    printf("\nRequest:\n %s\n ", parseRequest->request);  //show full request
+    //printf("\nRequest:\n %s\n ", parseRequest->request);  //show full request
     return parseRequest;
 }
 
-parse_t* ParseMethod(parse_t* parseRequest)
+char* ParseMethod(parse_t* parseRequest)
 {
     char* request = parseRequest->request;
     char buffer[100] = "\0";
@@ -95,10 +90,10 @@ parse_t* ParseMethod(parse_t* parseRequest)
     }
     
     size_t sizeOfBuffer = strlen(buffer);
-    parseRequest->method = malloc(sizeOfBuffer);
-    strcpy(parseRequest->method, buffer);
+    char* method = calloc(sizeOfBuffer + 1, sizeof(char));
+    strcpy(method, buffer);
     //printf("Method \n%s\n", parseRequest->method);   //show method
-    return parseRequest;
+    return method;
 }
 
 char* IsolateBody(parse_t* parseRequest)
@@ -129,7 +124,7 @@ char* IsolateBody(parse_t* parseRequest)
         a++;
     }
     size_t sizeOfBuffer = strlen(buffer);
-    char* body = malloc(sizeOfBuffer + 1);
+    char* body = calloc(sizeOfBuffer + 1, sizeof(char));
     strcpy(body, buffer);
 
     return body;
@@ -142,7 +137,7 @@ char* ParseName(parse_t* parseRequest)
 
     int i = 0;
 
-    if(strcmp(parseRequest->method, "DELETE") == 0 || strcmp(parseRequest->method, "PUT") == 0)
+    if(strcmp(ParseMethod(parseRequest), "DELETE") == 0 || strcmp(ParseMethod(parseRequest), "PUT") == 0)
     {
         while(i != sizeOfBody)
         {
@@ -189,10 +184,10 @@ char* ParseName(parse_t* parseRequest)
     }
     size_t sizeOfBuffer = strlen(buffer);
 
-    char* name = malloc(sizeOfBuffer);
+    char* name = calloc(sizeOfBuffer + 1, sizeof(char));
     strcpy(name, buffer);
 
-    printf("\n\nname %s\n\n", parseRequest->name);
+    //printf("\nname %s\n", name);
     free(body);
     return name;
 }
@@ -246,19 +241,19 @@ int ParseId(parse_t* parseRequest)
 
 int MethodID(parse_t* ParseRequest)
 {
-    if(strcmp(ParseRequest->method, "GET") == 0)
+    if(strcmp(ParseMethod(ParseRequest), "GET") == 0)
     {
         return 0;
     }
-    if(strcmp(ParseRequest->method, "POST") == 0)
+    if(strcmp(ParseMethod(ParseRequest), "POST") == 0)
     {
         return 1;
     }
-    if(strcmp(ParseRequest->method, "PUT") == 0)
+    if(strcmp(ParseMethod(ParseRequest), "PUT") == 0)
     {
         return 2;
     }
-    if(strcmp(ParseRequest->method, "DELETE") == 0)
+    if(strcmp(ParseMethod(ParseRequest), "DELETE") == 0)
     {
         return 3;
     }
@@ -270,7 +265,7 @@ int MethodID(parse_t* ParseRequest)
 
 task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest)
 {
-    switch (MethodID(ParseMethod(parseRequest)))
+    switch (MethodID(parseRequest))
     {
         case 0:
             Read(socketClient, head, parseRequest);
@@ -336,7 +331,7 @@ char* BuildResponse(int id, char* names)
     if(id == 1)
     {
         size_t sizeOfrequest = sizeOfStatus200 + sizeOfConnection + sizeOfLineBreak + 1;
-        char* buildedResponse = calloc(sizeOfrequest, sizeof(char));
+        char* buildedResponse = calloc(sizeOfrequest + 1, sizeof(char));
 
         strcat(buildedResponse, status);
         strcat(buildedResponse, connection);
@@ -349,7 +344,7 @@ char* BuildResponse(int id, char* names)
     {
         size_t sizeOfNames = strlen(names);
 
-        char* charSizeOfNames = calloc(sizeOfNames, sizeof(char));
+        char* charSizeOfNames = calloc(sizeOfNames + 1, sizeof(char));
         sprintf(charSizeOfNames, "%ld", sizeOfNames);
 
         char* ContentLength = calloc(sizeOfLength + sizeOfNames + sizeOfLineBreak + 1, sizeof(char));
@@ -359,7 +354,7 @@ char* BuildResponse(int id, char* names)
         size_t sizeOfContentLength = strlen(ContentLength);
 
         size_t sizeOfResponse = sizeOfStatus200 + sizeOfType + sizeOfContentLength + sizeOfConnection + sizeOfLineBreak + sizeOfNames + 1;
-        char* buildedResponse = calloc(sizeOfResponse, sizeof(char));
+        char* buildedResponse = calloc(sizeOfResponse + 1, sizeof(char));
        
         strcat(buildedResponse, status);
         strcat(buildedResponse, type);
@@ -467,7 +462,7 @@ char* BuildNames(char* buildedNames, task_t* pointer)
         size_t sizeOfBuildedNames = strlen(buildedNames);
 
         size_t sizeOfBufferBuildedNames = sizeOfBuildedNames + sizeOfOpenedBracket + sizeOfFullResponseId + sizeOfComma  + sizeOfSpace + sizeOfFullResponseName + sizeOfClosedBracket + sizeOfBreakLine + 1;
-        char* bufferBuildedNames = calloc(sizeOfBufferBuildedNames, sizeof(char));
+        char* bufferBuildedNames = calloc(sizeOfBufferBuildedNames + 1, sizeof(char));
         strcat(bufferBuildedNames, buildedNames);
 
         free(buildedNames);
@@ -497,7 +492,7 @@ task_t* Create (int socketClient, parse_t* parseRequest, task_t* head)
         head = (task_t*)malloc(sizeof(task_t));
         head->id = 0;
 
-        head->name = malloc(strlen(name));
+        head->name = calloc(strlen(name) + 1, sizeof(char));
         strcpy(head->name, name);
 
         head->nextTask = NULL;
@@ -516,10 +511,10 @@ task_t* Create (int socketClient, parse_t* parseRequest, task_t* head)
         i++;
     }
 
-    pointer->nextTask = (task_t*)malloc(sizeof(task_t));
+    pointer->nextTask = malloc(sizeof(task_t));
     pointer->nextTask->id = i++;
 
-    pointer->nextTask->name = malloc(strlen(name));
+    pointer->nextTask->name = calloc(strlen(name) + 1, sizeof(char));
     strcpy(pointer->nextTask->name, name);
     pointer->nextTask->nextTask = NULL;
 
@@ -581,7 +576,7 @@ task_t* Delete(int socketClient, task_t* head, parse_t* parseRequest)
     }
     else
     {
-        while(pointer->nextTask->id != id)
+        while(pointer->nextTask->id != id || pointer->nextTask != NULL)
         {
             pointer = pointer->nextTask;
         }
