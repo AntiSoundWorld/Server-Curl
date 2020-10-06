@@ -565,18 +565,30 @@ void Update(int socketClient, task_t* head, parse_t* parseRequest)
 }
 task_t* Delete(int socketClient, task_t* head, parse_t* parseRequest)
 {
-    task_t* pointer = head;
     int id = ParseId(parseRequest);
 
-    if(id == 0)
+    task_t* lastTask = head;
+    while(lastTask->nextTask != NULL)
     {
+        lastTask = lastTask->nextTask;
+    }
+    if(id < head->id || id > lastTask->id)
+    {
+        return head; // must be warning for client
+    }
+
+    task_t* pointer = head;
+    if(id == head->id)
+    {
+        pointer->nextTask->id = head->id;
         head = pointer->nextTask;
         free(pointer);
         pointer = head;
     }
-    else
+
+    if(id > head->id && id < lastTask->id)
     {
-        while(pointer->nextTask->id != id || pointer->nextTask != NULL)
+        while(pointer->nextTask->id != id)
         {
             pointer = pointer->nextTask;
         }
@@ -586,9 +598,19 @@ task_t* Delete(int socketClient, task_t* head, parse_t* parseRequest)
         pointer = pointer->nextTask;
     }
 
-    while(pointer != NULL)
+    if(id == lastTask->id)
     {
-        pointer->id = pointer->id - 1;
+        while(pointer->nextTask != lastTask)
+        {
+            pointer = pointer->nextTask;
+        }
+        free(pointer->nextTask);
+        pointer->nextTask = NULL;
+    }
+
+    while(pointer->nextTask != NULL)
+    {
+        pointer->nextTask->id = pointer->nextTask->id - 1;
         pointer = pointer->nextTask;
     }
 
