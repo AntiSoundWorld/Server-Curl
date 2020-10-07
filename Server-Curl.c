@@ -50,6 +50,7 @@ void Update(int clientSocket, task_t* head, parse_t* ParseRequest);
 task_t* Delete(int socketClient, task_t* head, parse_t* parseRequest);
 list_t* List();
 void FreeList(list_t* list);
+void ReassigneId(task_t* head);
 
 int main()
 {
@@ -538,24 +539,30 @@ void Update(int socketClient, task_t* head, parse_t* parseRequest)
 task_t* Delete(int socketClient, task_t* head, parse_t* parseRequest)
 {
     int id = ParseId(parseRequest);
-
+    
     task_t* lastTask = head;
     while(lastTask->nextTask != NULL)
     {
         lastTask = lastTask->nextTask;
     }
+    
+
     if(id < head->id || id > lastTask->id)
     {
         return head; // must be warning for client
     }
 
+    printf("%d", id);
+
     task_t* pointer = head;
-    if(id == head->id)
+    if(id == 0)
     {
-        pointer->nextTask->id = head->id;
         head = pointer->nextTask;
         free(pointer);
         pointer = head;
+        ReassigneId(head);
+
+        return head;
     }
 
     if(id > head->id && id < lastTask->id)
@@ -580,15 +587,7 @@ task_t* Delete(int socketClient, task_t* head, parse_t* parseRequest)
         pointer->nextTask = NULL;
     }
 
-    pointer = head;
-    int i = 0;
-    while(pointer != NULL)
-    {
-        pointer->id = i;
-        pointer = pointer->nextTask;
-        i++;
-    }
-
+    ReassigneId(head);
     return head;
 }
 
@@ -672,4 +671,16 @@ void FreeList(list_t* list)
     free(list->colon);
     free(list->comma);
     free(list);
+}
+
+void ReassigneId(task_t* head)
+{
+    task_t* pointer = head;
+    int i = 0;
+    while(pointer != NULL)
+    {
+        pointer->id = i;
+        pointer = pointer->nextTask;
+        i++;
+    }
 }
