@@ -39,7 +39,7 @@ parse_t* Recieve(int clientSocket, parse_t* parseRequest);
 char* ParseMethod(parse_t* parseRequest);
 char* IsolateBody(parse_t* parseRequest);
 int ParseId(int i, parse_t* parseRequest);
-char* ParseValue(int i, parse_t* parseRequest);
+char* ParseBody(int i, parse_t* parseRequest);
 task_t* Create (int socketClient, parse_t* parseRequest, task_t* node);
 task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest);
 void Read(int socketClient, task_t* head, parse_t* ParseRequest);
@@ -53,6 +53,9 @@ void FreeList(list_t* list);
 void ReassigneId(task_t* head);
 char* CheckNameExistance(parse_t* parseRequest);
 int CheckIdExistance(parse_t* parseRequest);
+char* BuildResponseRead(list_t* list, char* names);
+char* BuildConfirmationRequest(list_t* list);
+char* BuildResponseEmptyTask(list_t* list);
 
 int main()
 {
@@ -73,6 +76,7 @@ void SetSocket()
 
     task_t* head = NULL;
     parse_t* parseRequest = (parse_t *)malloc(sizeof(parse_t));
+
     while(true)
     {
         int clientSocket = accept(serverSocket, NULL, NULL);
@@ -151,8 +155,7 @@ char* IsolateBody(parse_t* parseRequest)
     return body;
 }
 
-
-char* ParseValue(int i, parse_t* parseRequest)
+char* ParseBody(int i, parse_t* parseRequest)
 {
     char* body = IsolateBody(parseRequest);
     size_t sizeOfBody = strlen(body);
@@ -227,82 +230,6 @@ task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest
     return head;
 }
 
-char* BuildResponse(int id, char* names)
-{
-    list_t* list = List();
-
-    if(id == 0)
-    {
-        char* charSizeEmptyTask = calloc(strlen(list->bodyEmptyTask) + 1, sizeof(char));
-        sprintf(charSizeEmptyTask, "%ld", strlen(list->bodyEmptyTask));
-
-        char* contentLength = calloc(strlen(list->length) + strlen(list->bodyEmptyTask) + strlen(list->lineBreak) + 1, sizeof(char)); 
-        strcat(contentLength, list->length);
-        strcat(contentLength, charSizeEmptyTask);
-        strcat(contentLength, list->lineBreak);
-        
-        size_t sizeOfrequest = strlen(list->status) + strlen(list->type) + strlen(contentLength) + strlen(list->connection) 
-        + strlen(list->lineBreak) + strlen(list->bodyEmptyTask);
-
-        char* buildedResponse = calloc(sizeOfrequest + 1, sizeof(char));
-
-        strcat(buildedResponse, list->status);
-        strcat(buildedResponse, list->type);
-        strcat(buildedResponse, contentLength);
-        strcat(buildedResponse, list->connection);
-        strcat(buildedResponse, list->lineBreak);
-        strcat(buildedResponse, list->bodyEmptyTask);
-
-        //printf("%s \n", buildedResponse); //show full response
-        free(charSizeEmptyTask);
-        free(contentLength);
-        free(list);
-        return buildedResponse;
-    }
-    if(id == 1)
-    {
-        size_t sizeOfrequest = strlen(list->status) + strlen(list->connection) + strlen(list->lineBreak) + 1;
-        char* buildedResponse = calloc(sizeOfrequest + 1, sizeof(char));
-
-        strcat(buildedResponse, list->status);
-        strcat(buildedResponse, list->connection);
-        strcat(buildedResponse, list->lineBreak);
-
-        free(list);
-        //printf("\nFull response\n%s \n", buildedResponse); //show full response
-        return buildedResponse;
-    }
-    if(id == 2)
-    {
-        size_t sizeOfNames = strlen(names);
-
-        char* charSizeOfNames = calloc(sizeOfNames + 1, sizeof(char));
-        sprintf(charSizeOfNames, "%ld", sizeOfNames);
-
-        char* ContentLength = calloc(strlen(list->length) + sizeOfNames + strlen(list->lineBreak) + 1, sizeof(char));
-        strcat(ContentLength, list->length);
-        strcat(ContentLength, charSizeOfNames);
-        strcat(ContentLength, list->lineBreak);
-        size_t sizeOfContentLength = strlen(ContentLength);
-
-        size_t sizeOfResponse = strlen(list->status) + strlen(list->type) + sizeOfContentLength + strlen(list->connection) 
-        + strlen(list->lineBreak) + sizeOfNames + 1;
-
-        char* buildedResponse = calloc(sizeOfResponse + 1, sizeof(char));
-
-        strcat(buildedResponse, list->status);
-        strcat(buildedResponse, list->type);
-        strcat(buildedResponse, ContentLength);
-        strcat(buildedResponse, list->connection);
-        strcat(buildedResponse, list->lineBreak);
-        strcat(buildedResponse, names);
-
-        FreeList(list);
-
-        return buildedResponse;
-    }
-    return NULL;
-}
 
 void SendResponse(int clientSocket, char* buildedResponse)
 {   
@@ -413,7 +340,7 @@ task_t* Create (int socketClient, parse_t* parseRequest, task_t* head)
 
         head->nextTask = NULL;
         
-        SendResponse(socketClient, BuildResponse(1, NULL));
+        SendResponse(socketClient, BuildConfirmationRequest(List()));
 
         return head;
     }
@@ -441,7 +368,7 @@ void Read(int socketClient, task_t* head, parse_t* parseRequest)
 {
     if(head == NULL)
     {   
-        SendResponse(socketClient, BuildResponse(0, NULL));
+        SendResponse(socketClient, BuildResponseEmptyTask(List()));
         return;
     }
     task_t* pointer = head;
@@ -452,7 +379,7 @@ void Read(int socketClient, task_t* head, parse_t* parseRequest)
         buildedNames = BuildNames(buildedNames, pointer);
         pointer = pointer->nextTask;
     }
-    SendResponse(socketClient, BuildResponse(2, buildedNames));
+    SendResponse(socketClient, BuildResponseRead(List(), buildedNames));
 
     //printf("\n\nbuildedNames\n %s\n\n", buildedNames);
 }
@@ -461,7 +388,7 @@ void Update(int socketClient, task_t* head, parse_t* parseRequest)
 {
     if(head == NULL)
     {
-        SendResponse(socketClient, BuildResponse(0, NULL));
+        SendResponse(socketClient, BuildResponseEmptyTask(List()));
         return;
     }
     task_t* pointer = head;
@@ -484,7 +411,7 @@ void Update(int socketClient, task_t* head, parse_t* parseRequest)
     strcat(pointer->name, newName);
     free(newName);
 
-    SendResponse(socketClient, BuildResponse(1, NULL));
+    SendResponse(socketClient, BuildConfirmationRequest(List()));
 }
 
 task_t* Delete(int socketClient, task_t* head, parse_t* parseRequest)
@@ -505,7 +432,7 @@ task_t* Delete(int socketClient, task_t* head, parse_t* parseRequest)
 
     if(id < head->id || id > lastTask->id)
     {
-        return head; // must be warning for client
+        return head; // place for warning
     }
 
     printf("%d", id);
@@ -518,6 +445,7 @@ task_t* Delete(int socketClient, task_t* head, parse_t* parseRequest)
         pointer = head;
         ReassigneId(head);
 
+        SendResponse(socketClient, BuildConfirmationRequest(List()));
         return head;
     }
 
@@ -544,6 +472,8 @@ task_t* Delete(int socketClient, task_t* head, parse_t* parseRequest)
     }
 
     ReassigneId(head);
+
+    SendResponse(socketClient, BuildConfirmationRequest(List()));
     return head;
 }
 
@@ -647,11 +577,11 @@ int CheckIdExistance(parse_t* parseRequest)
     size_t sizeOfBody = strlen(body);
 
     int i = 0;
-    while(i != sizeOfBody - 1)
+    while(i != sizeOfBody - 2)
     {
         if(body[i] == 'i' && body[i + 1] == 'd')
         {
-            return atoi(ParseValue(i, parseRequest));
+            return atoi(ParseBody(i, parseRequest));
         }
         i++;
     }
@@ -668,9 +598,81 @@ char* CheckNameExistance(parse_t* parseRequest)
     {
         if(body[i] == 'n' && body[i + 1] == 'a' && body[i + 2] == 'm' && body[i + 3] == 'e')
         {
-           return ParseValue(i, parseRequest);
+           return ParseBody(i, parseRequest);
         }
         i++;
     }
     return NULL;
+}
+
+char* BuildResponseEmptyTask(list_t* list)
+{
+    char* charSizeEmptyTask = calloc(strlen(list->bodyEmptyTask) + 1, sizeof(char));
+    sprintf(charSizeEmptyTask, "%ld", strlen(list->bodyEmptyTask));
+
+    char* contentLength = calloc(strlen(list->length) + strlen(list->bodyEmptyTask) + strlen(list->lineBreak) + 1, sizeof(char)); 
+    strcat(contentLength, list->length);
+    strcat(contentLength, charSizeEmptyTask);
+    strcat(contentLength, list->lineBreak);
+    
+    size_t sizeOfrequest = strlen(list->status) + strlen(list->type) + strlen(contentLength) + strlen(list->connection) 
+    + strlen(list->lineBreak) + strlen(list->bodyEmptyTask);
+
+    char* buildedResponse = calloc(sizeOfrequest + 1, sizeof(char));
+
+    strcat(buildedResponse, list->status);
+    strcat(buildedResponse, list->type);
+    strcat(buildedResponse, contentLength);
+    strcat(buildedResponse, list->connection);
+    strcat(buildedResponse, list->lineBreak);
+    strcat(buildedResponse, list->bodyEmptyTask);
+
+    //printf("%s \n", buildedResponse); //show full response
+    free(charSizeEmptyTask);
+    free(contentLength);
+    FreeList(list);
+    return buildedResponse;
+}
+
+char* BuildConfirmationRequest(list_t* list)
+{
+    size_t sizeOfrequest = strlen(list->status) + strlen(list->connection) + strlen(list->lineBreak) + 1;
+    char* buildedResponse = calloc(sizeOfrequest + 1, sizeof(char));
+
+    strcat(buildedResponse, list->status);
+    strcat(buildedResponse, list->connection);
+    strcat(buildedResponse, list->lineBreak);
+
+    FreeList(list);
+    //printf("\nFull response\n%s \n", buildedResponse); //show full response
+    return buildedResponse;
+}
+char* BuildResponseRead(list_t* list, char* names)
+{
+    size_t sizeOfNames = strlen(names);
+
+    char* charSizeOfNames = calloc(sizeOfNames + 1, sizeof(char));
+    sprintf(charSizeOfNames, "%ld", sizeOfNames);
+
+    char* ContentLength = calloc(strlen(list->length) + sizeOfNames + strlen(list->lineBreak) + 1, sizeof(char));
+    strcat(ContentLength, list->length);
+    strcat(ContentLength, charSizeOfNames);
+    strcat(ContentLength, list->lineBreak);
+    size_t sizeOfContentLength = strlen(ContentLength);
+
+    size_t sizeOfResponse = strlen(list->status) + strlen(list->type) + sizeOfContentLength + strlen(list->connection) 
+    + strlen(list->lineBreak) + sizeOfNames + 1;
+
+    char* buildedResponse = calloc(sizeOfResponse + 1, sizeof(char));
+
+    strcat(buildedResponse, list->status);
+    strcat(buildedResponse, list->type);
+    strcat(buildedResponse, ContentLength);
+    strcat(buildedResponse, list->connection);
+    strcat(buildedResponse, list->lineBreak);
+    strcat(buildedResponse, names);
+
+    FreeList(list);
+
+    return buildedResponse;
 }
