@@ -39,7 +39,7 @@ parse_t* Recieve(int clientSocket, parse_t* parseRequest);
 char* ParseMethod(parse_t* parseRequest);
 char* IsolateBody(parse_t* parseRequest);
 int ParseId(int i, parse_t* parseRequest);
-char* ParseName(int i, parse_t* parseRequest);
+char* ParseValue(int i, parse_t* parseRequest);
 task_t* Create (int socketClient, parse_t* parseRequest, task_t* node);
 task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest);
 void Read(int socketClient, task_t* head, parse_t* ParseRequest);
@@ -152,7 +152,7 @@ char* IsolateBody(parse_t* parseRequest)
 }
 
 
-char* ParseName(int i, parse_t* parseRequest)
+char* ParseValue(int i, parse_t* parseRequest)
 {
     char* body = IsolateBody(parseRequest);
     size_t sizeOfBody = strlen(body);
@@ -201,56 +201,6 @@ char* ParseName(int i, parse_t* parseRequest)
     return name;
 }
 
-int ParseId(int i, parse_t* parseRequest)
-{
-    char* body = IsolateBody(parseRequest);
-    size_t sizeOfBody = strlen(body);
-    
-    if(i == -1)
-    {
-        //warnig for client
-    }
-
-    while(i < sizeOfBody)
-    {
-        if(body[i] == ':')
-        {
-            break;
-        }
-        i++;
-    }
-
-    while(i < sizeOfBody)
-    {
-        if(body[i] == '\"')
-        {
-            break;
-        }
-        i++;
-    }
-
-    i++;
-    char buffer[1024] = "\0";
-    int j = 0;
-    while(i < sizeOfBody)
-    {
-        if(body[i] == '\"')
-        {
-            break;
-        }
-        buffer[j] = body[i];
-        i++;
-        j++;
-    }
-
-    size_t sizeOfBuffer = strlen(buffer);
-    char* charId = calloc(sizeOfBuffer + 1, sizeof(char));
-    strcat(charId, buffer);
-    int id = atoi(charId);
-
-    //printf("\n\nId %d\n\n", id);
-    return id;
-}
 
 task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest)
 {
@@ -701,7 +651,7 @@ int CheckIdExistance(parse_t* parseRequest)
     {
         if(body[i] == 'i' && body[i + 1] == 'd')
         {
-            return ParseId(i, parseRequest);
+            return atoi(ParseValue(i, parseRequest));
         }
         i++;
     }
@@ -718,7 +668,7 @@ char* CheckNameExistance(parse_t* parseRequest)
     {
         if(body[i] == 'n' && body[i + 1] == 'a' && body[i + 2] == 'm' && body[i + 3] == 'e')
         {
-           return ParseName(i, parseRequest);
+           return ParseValue(i, parseRequest);
         }
         i++;
     }
