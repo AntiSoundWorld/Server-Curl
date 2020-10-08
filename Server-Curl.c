@@ -21,6 +21,8 @@ typedef struct List
     char* quotes;
     char* colon;
     char* comma;
+    char* errorValue;
+    char* errorId;
 }list_t;
 typedef struct Parse
 {
@@ -51,11 +53,15 @@ task_t* Delete(int socketClient, task_t* head, parse_t* parseRequest);
 list_t* List();
 void FreeList(list_t* list);
 void ReassigneId(task_t* head);
-char* CheckNameExistance(parse_t* parseRequest);
-int CheckIdExistance(parse_t* parseRequest);
+char* FindName(parse_t* parseRequest);
+int FindId(parse_t* parseRequest);
 char* BuildResponseRead(list_t* list, char* names);
-char* BuildConfirmationRequest(list_t* list);
+char* BuildResponseConfirmationRequest(list_t* list);
 char* BuildResponseEmptyTask(list_t* list);
+char* BuildResponseErrorValue(list_t* list);
+char* BuildResponseErrorId(list_t* list);
+bool CheckErrorId(int socketClient, task_t* head, parse_t* parseRequest);
+bool CheckErrorName(int socketClient, parse_t* parseRequest);
 
 int main()
 {
@@ -195,13 +201,13 @@ char* ParseBody(int i, parse_t* parseRequest)
     }
     size_t sizeOfBuffer = strlen(buffer);
 
-    char* name = calloc(sizeOfBuffer + 1, sizeof(char));
-    strcpy(name, buffer);
+    char* value = calloc(sizeOfBuffer + 1, sizeof(char));
+    strcpy(value, buffer);
 
-    //printf("\nname %s\n", name);
+    //printf("\nParseBody value = %s\n", value);
     free(body);
 
-    return name;
+    return value;
 }
 
 
@@ -323,12 +329,13 @@ char* BuildNames(char* buildedNames, task_t* pointer)
 
 task_t* Create (int socketClient, parse_t* parseRequest, task_t* head)
 {
-    char* name = CheckNameExistance(parseRequest);
-    if(name == NULL)
+    if(CheckErrorName(socketClient, parseRequest))
     {
-        //place for warning
         return head;
     }
+
+    char* name = FindName(parseRequest);
+
     if(head == NULL)
     {
         head = (task_t*)malloc(sizeof(task_t));
@@ -340,7 +347,7 @@ task_t* Create (int socketClient, parse_t* parseRequest, task_t* head)
 
         head->nextTask = NULL;
         
-        SendResponse(socketClient, BuildConfirmationRequest(List()));
+        SendResponse(socketClient, BuildResponseConfirmationRequest(List()));
 
         return head;
     }
@@ -386,20 +393,21 @@ void Read(int socketClient, task_t* head, parse_t* parseRequest)
 
 void Update(int socketClient, task_t* head, parse_t* parseRequest)
 {
-    if(head == NULL)
+    if(CheckErrorId(socketClient, head, parseRequest) || CheckErrorName(socketClient, parseRequest))
     {
-        SendResponse(socketClient, BuildResponseEmptyTask(List()));
         return;
     }
-    task_t* pointer = head;
 
-    int id = CheckIdExistance(parseRequest);
-    char* newName = CheckNameExistance(parseRequest);
-    if(id == -1 || newName == NULL)
+    int id = FindId(parseRequest);
+    
+    char* newName = FindName(parseRequest);
+    if(newName == NULL)
     {
-        //place for warning
+        SendResponse(socketClient, BuildResponseErrorValue(List()));
         return;
     }
+
+    task_t* pointer = head;
 
     while(pointer->id != id)
     {
@@ -411,31 +419,17 @@ void Update(int socketClient, task_t* head, parse_t* parseRequest)
     strcat(pointer->name, newName);
     free(newName);
 
-    SendResponse(socketClient, BuildConfirmationRequest(List()));
+    SendResponse(socketClient, BuildResponseConfirmationRequest(List()));
 }
 
 task_t* Delete(int socketClient, task_t* head, parse_t* parseRequest)
 {
-    int id = CheckIdExistance(parseRequest);
-    if(id == -1)
+    if(CheckErrorId(socketClient, head, parseRequest))
     {
-        //place for warning
         return head;
     }
-    
-    task_t* lastTask = head;
-    while(lastTask->nextTask != NULL)
-    {
-        lastTask = lastTask->nextTask;
-    }
-    
 
-    if(id < head->id || id > lastTask->id)
-    {
-        return head; // place for warning
-    }
-
-    printf("%d", id);
+    int id = FindId(parseRequest);
 
     task_t* pointer = head;
     if(id == 0)
@@ -445,8 +439,14 @@ task_t* Delete(int socketClient, task_t* head, parse_t* parseRequest)
         pointer = head;
         ReassigneId(head);
 
-        SendResponse(socketClient, BuildConfirmationRequest(List()));
+        SendResponse(socketClient, BuildResponseConfirmationRequest(List()));
         return head;
+    }
+
+    task_t* lastTask = head;
+    while(lastTask->nextTask != NULL)
+    {
+        lastTask = lastTask->nextTask;
     }
 
     if(id > head->id && id < lastTask->id)
@@ -473,7 +473,7 @@ task_t* Delete(int socketClient, task_t* head, parse_t* parseRequest)
 
     ReassigneId(head);
 
-    SendResponse(socketClient, BuildConfirmationRequest(List()));
+    SendResponse(socketClient, BuildResponseConfirmationRequest(List()));
     return head;
 }
 
@@ -500,6 +500,14 @@ list_t* List()
     char connection[] = "Connection: keep-alive \n";
     list->connection = calloc(strlen(connection) + 1, sizeof(char));
     strcpy(list->connection, connection);
+
+    char errorValue[] = "error: you entered incorrect values\n";
+    list->errorValue = calloc(strlen(errorValue) + 1, sizeof(char));
+    strcpy(list->errorValue, errorValue);
+
+    char errorId[] = "error: you entered incorrect id\n";
+    list->errorId = calloc(strlen(errorId) + 1, sizeof(char));
+    strcpy(list->errorId, errorId);
 
     char lineBreak[] = "\n";
     list->lineBreak = calloc(strlen(lineBreak) + 1, sizeof(char));
@@ -540,25 +548,6 @@ list_t* List()
     return list;
 }
 
-void FreeList(list_t* list)
-{
-    free(list->bodyEmptyTask);
-    free(list->status);
-    free(list->type);
-    free(list->length);
-    free(list->connection);
-    free(list->lineBreak);
-    free(list->responseId);
-    free(list->responseName);
-    free(list->space);
-    free(list->openedBracket);
-    free(list->closedBracket);
-    free(list->quotes);
-    free(list->colon);
-    free(list->comma);
-    free(list);
-}
-
 void ReassigneId(task_t* head)
 {
     task_t* pointer = head;
@@ -571,7 +560,7 @@ void ReassigneId(task_t* head)
     }
 }
 
-int CheckIdExistance(parse_t* parseRequest)
+int FindId(parse_t* parseRequest)
 {
     char* body = IsolateBody(parseRequest);
     size_t sizeOfBody = strlen(body);
@@ -581,20 +570,23 @@ int CheckIdExistance(parse_t* parseRequest)
     {
         if(body[i] == 'i' && body[i + 1] == 'd')
         {
-            return atoi(ParseBody(i, parseRequest));
+            char* charId = ParseBody(i, parseRequest);
+            int id = atoi(charId);
+            free(charId);
+            return id;
         }
         i++;
     }
     return -1;
 }
 
-char* CheckNameExistance(parse_t* parseRequest)
+char* FindName(parse_t* parseRequest)
 {
     char* body = IsolateBody(parseRequest);
     size_t sizeOfBody = strlen(body);
 
     int i = 0;
-    while(i != sizeOfBody - 3)
+    while(i != sizeOfBody - 4)
     {
         if(body[i] == 'n' && body[i + 1] == 'a' && body[i + 2] == 'm' && body[i + 3] == 'e')
         {
@@ -634,7 +626,7 @@ char* BuildResponseEmptyTask(list_t* list)
     return buildedResponse;
 }
 
-char* BuildConfirmationRequest(list_t* list)
+char* BuildResponseConfirmationRequest(list_t* list)
 {
     size_t sizeOfrequest = strlen(list->status) + strlen(list->connection) + strlen(list->lineBreak) + 1;
     char* buildedResponse = calloc(sizeOfrequest + 1, sizeof(char));
@@ -676,3 +668,121 @@ char* BuildResponseRead(list_t* list, char* names)
 
     return buildedResponse;
 }
+
+char* BuildResponseErrorValue(list_t* list)
+{
+    size_t sizeOfErrorValue = strlen(list->errorValue);
+    char* charSizeOfErrorValue = calloc(sizeOfErrorValue, sizeof(char));
+    sprintf(charSizeOfErrorValue, "%ld", sizeOfErrorValue);
+
+    char* contentLength = calloc(strlen(list->length) + sizeOfErrorValue + 1, sizeof(char));
+    strcat(contentLength, list->length);
+    strcat(contentLength, charSizeOfErrorValue);
+
+    size_t sizeOfResponse = strlen(list->status) + strlen(list->type) + strlen(list->connection) + strlen(contentLength) + strlen(list->lineBreak) 
+    + strlen(list->errorValue) + 1;
+
+    char* buildedResponse = calloc(sizeOfResponse, sizeof(char));
+    strcat(buildedResponse, list->status);
+    strcat(buildedResponse, list->type);
+    strcat(buildedResponse, contentLength);
+    strcat(buildedResponse, list->lineBreak);
+    strcat(buildedResponse, list->connection);
+    strcat(buildedResponse, list->lineBreak);
+    strcat(buildedResponse, list->errorValue);
+
+    return buildedResponse;
+}
+
+char* BuildResponseErrorId(list_t* list)
+{
+    size_t sizeOfErrorId = strlen(list->errorId);
+    char* charSizeOfErrorId = calloc(sizeOfErrorId, sizeof(char));
+    sprintf(charSizeOfErrorId, "%ld", sizeOfErrorId);
+
+    char* contentLength = calloc(strlen(list->length) + sizeOfErrorId + 1, sizeof(char));
+    strcat(contentLength, list->length);
+    strcat(contentLength, charSizeOfErrorId);
+
+    size_t sizeOfResponse = strlen(list->status) + strlen(list->type) + strlen(list->connection) + strlen(contentLength) + strlen(list->lineBreak) 
+    + strlen(list->errorValue) + 1;
+
+    char* buildedResponse = calloc(sizeOfResponse, sizeof(char));
+    strcat(buildedResponse, list->status);
+    strcat(buildedResponse, list->type);
+    strcat(buildedResponse, contentLength);
+    strcat(buildedResponse, list->lineBreak);
+    strcat(buildedResponse, list->connection);
+    strcat(buildedResponse, list->lineBreak);
+    strcat(buildedResponse, list->errorId);
+
+    return buildedResponse;
+}
+
+void FreeList(list_t* list)
+{
+    free(list->bodyEmptyTask);
+    free(list->status);
+    free(list->type);
+    free(list->length);
+    free(list->connection);
+    free(list->lineBreak);
+    free(list->responseId);
+    free(list->responseName);
+    free(list->space);
+    free(list->openedBracket);
+    free(list->closedBracket);
+    free(list->quotes);
+    free(list->colon);
+    free(list->comma);
+    free(list);
+}
+
+bool CheckErrorId(int socketClient, task_t* head, parse_t* parseRequest)
+{
+    bool isErrorExist = false;
+
+    task_t* lastTask = head;
+    while(lastTask->nextTask != NULL)
+    {
+        lastTask = lastTask->nextTask;
+    }
+
+    int id = FindId(parseRequest);
+    
+    if(id == -1)
+    {
+        SendResponse(socketClient, BuildResponseErrorId(List()));
+        return isErrorExist = true;
+    }
+
+    if(id < head->id)
+    {
+        SendResponse(socketClient, BuildResponseErrorId(List()));
+        return isErrorExist = true;
+    }
+    
+    if(id > lastTask->id)
+    {
+        SendResponse(socketClient, BuildResponseErrorId(List()));
+        return isErrorExist = true;
+    }
+    
+    return isErrorExist;
+}
+
+bool CheckErrorName(int socketClient, parse_t* parseRequest)
+{
+    bool isErrorNameExist = false;
+
+    char* name = FindName(parseRequest);
+
+    if(name == NULL)
+    {
+        SendResponse(socketClient, BuildResponseErrorValue(List()));
+        return isErrorNameExist = true;
+    }
+
+    return isErrorNameExist;
+}
+
