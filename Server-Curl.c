@@ -380,8 +380,9 @@ task_t* Create (int socketClient, parse_t* parseRequest, task_t* head)
 
 void Read(int socketClient, task_t* head, parse_t* parseRequest)
 {
-    if(CheckErrorId(socketClient, head, parseRequest))
-    {   
+    if(head == NULL)
+    {
+        SendResponse(socketClient, BuildResponseEmptyTask(List()));
         return;
     }
 
@@ -874,18 +875,12 @@ bool CheckErrorId(int socketClient, task_t* head, parse_t* parseRequest)
 {
     bool isErrorExist = false;
 
-
-    if(head == NULL)
-    {
-        SendResponse(socketClient, BuildResponseEmptyTask(List()));
-        return isErrorExist = true;
-    }
-
     task_t* lastTask = head;
     while(lastTask->nextTask != NULL)
     {
         lastTask = lastTask->nextTask;
     }
+    
     int id = FindId(parseRequest);
     
     if(id == -1)
