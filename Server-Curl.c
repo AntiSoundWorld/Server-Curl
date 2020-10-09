@@ -262,43 +262,44 @@ char* BuildNames(char* buildedNames, task_t* pointer)
     list_t* list = List();
 
     int id = pointer->id;
-    char* charId = calloc(id + 1, sizeof(char));
-    sprintf(charId, "%d", id);
+    char buffer[1024] = "\0";
+    sprintf(buffer, "%d", id);
+
+    char* charId = calloc(strlen(buffer) + 1, sizeof(char));
+    strcat(charId, buffer);
 
     char* name = pointer->name;
     size_t sizeOfName = strlen(name);
 
     char* fullResponseId = calloc(strlen(list->quotes) + strlen(list->responseId) + strlen(list->quotes) + strlen(list->colon) 
-    + strlen(list->space) + strlen(list->quotes) + strlen(charId) + strlen(list->quotes) + 1, sizeof(char));
+    + strlen(list->quotes) + strlen(charId) + strlen(list->quotes) + 1, sizeof(char));
 
     strcat(fullResponseId, list->quotes);
     strcat(fullResponseId, list->responseId);
     strcat(fullResponseId, list->quotes);
     strcat(fullResponseId, list->colon);
-    strcat(fullResponseId, list->space);
     strcat(fullResponseId, list->quotes);
     strcat(fullResponseId, charId);
     strcat(fullResponseId, list->quotes);
     
 
     char* fullResponseName = calloc(strlen(list->quotes) + strlen(list->responseName) + strlen(list->quotes) + strlen(list->colon) 
-    + strlen(list->space) + strlen(list->comma) + sizeOfName + strlen(list->comma) + 1, sizeof(char));
+    + strlen(list->quotes) + sizeOfName + strlen(list->quotes) + 1, sizeof(char));
 
     strcat(fullResponseName, list->quotes);
     strcat(fullResponseName, list->responseName);
     strcat(fullResponseName, list->quotes);
     strcat(fullResponseName, list->colon);
-    strcat(fullResponseName, list->space);
     strcat(fullResponseName, list->quotes);
     strcat(fullResponseName, name);
     strcat(fullResponseName, list->quotes);
     
     if(buildedNames == NULL)
     {
-        size_t sizeOfBuiledNames = strlen(list->openedBracket) + strlen(fullResponseId) + strlen(fullResponseName) 
-        + strlen(list->closedBracket) + strlen(list->lineBreak) + 1;
+        size_t sizeOfBuiledNames = strlen(list->openedBracket) + strlen(fullResponseId) + strlen(list->comma) + strlen(fullResponseName)
+        + strlen(list->closedBracket) + strlen(list->lineBreak);
 
-        buildedNames = calloc(sizeOfBuiledNames, sizeof(char));
+        buildedNames = calloc(sizeOfBuiledNames + 1, sizeof(char));
     }
     else
     {
@@ -312,10 +313,10 @@ char* BuildNames(char* buildedNames, task_t* pointer)
 
         buildedNames = bufferBuildedNames;
     }
+
     strcat(buildedNames, list->openedBracket);
     strcat(buildedNames, fullResponseId);
     strcat(buildedNames, list->comma);
-    strcat(buildedNames, list->space);
     strcat(buildedNames, fullResponseName);
     strcat(buildedNames, list->closedBracket);
     strcat(buildedNames, list->lineBreak);
@@ -678,37 +679,41 @@ char* BuildResponseErrorValue(list_t* list)
 {
  size_t sizeOfErrorValue = strlen(list->openedBracket) + strlen(list->quotes) + strlen(list->error) + strlen(list->quotes) 
     + strlen(list->colon) + strlen(list->quotes) + strlen(list->errorValue) + strlen(list->quotes) +  strlen(list->closedBracket) 
-    + strlen(list->lineBreak) + 1;
-    char* charSizeOfErrorValue = calloc(sizeOfErrorValue, sizeof(char));
+    + strlen(list->lineBreak);
 
+    char* errorValue = calloc(sizeOfErrorValue + 1, sizeof(char));
+    strcat(errorValue, list->openedBracket);
+    strcat(errorValue, list->quotes);
+    strcat(errorValue, list->error);
+    strcat(errorValue, list->quotes);
+    strcat(errorValue, list->colon);
+    strcat(errorValue, list->quotes);
+    strcat(errorValue, list->errorValue);
+    strcat(errorValue, list->quotes);
+    strcat(errorValue, list->closedBracket);
+    strcat(errorValue, list->lineBreak);
+
+
+    char* charSizeOfErrorValue = calloc(sizeOfErrorValue, sizeof(char));
     sprintf(charSizeOfErrorValue, "%ld", sizeOfErrorValue);
 
     char* contentLength = calloc(strlen(list->length) + sizeOfErrorValue + 1, sizeof(char));
     strcat(contentLength, list->length);
     strcat(contentLength, charSizeOfErrorValue);
 
-    size_t sizeOfResponse = strlen(list->status) + strlen(list->type) + strlen(list->connection) + strlen(contentLength) 
-    + strlen(list->lineBreak) + strlen(charSizeOfErrorValue) + 1;
+    size_t sizeOfResponse = strlen(list->status) + strlen(list->type) + strlen(contentLength) 
+    + strlen(list->lineBreak) + strlen(list->connection) + strlen(list->lineBreak) + sizeOfErrorValue + strlen(list->lineBreak);
 
-    char* buildedResponse = calloc(sizeOfResponse, sizeof(char));
+    char* buildedResponse = calloc(sizeOfResponse + 1, sizeof(char));
     strcat(buildedResponse, list->status);
     strcat(buildedResponse, list->type);
     strcat(buildedResponse, contentLength);
     strcat(buildedResponse, list->lineBreak);
     strcat(buildedResponse, list->connection);
     strcat(buildedResponse, list->lineBreak);
-    
-    strcat(buildedResponse, list->openedBracket);
-    strcat(buildedResponse, list->quotes);
-    strcat(buildedResponse, list->error);
-    strcat(buildedResponse, list->quotes);
-    strcat(buildedResponse, list->colon);
-    strcat(buildedResponse, list->quotes);
-    strcat(buildedResponse, list->errorValue);
-    strcat(buildedResponse, list->quotes);
-    strcat(buildedResponse, list->closedBracket);
+    strcat(buildedResponse, errorValue);
     strcat(buildedResponse, list->lineBreak);
-
+    
     return buildedResponse;
 }
 
@@ -716,8 +721,22 @@ char* BuildResponseErrorId(list_t* list)
 {
     size_t sizeOfErrorId = strlen(list->openedBracket) + strlen(list->quotes) + strlen(list->error) + strlen(list->quotes) 
     + strlen(list->colon) + strlen(list->quotes) + strlen(list->errorId) + strlen(list->quotes) +  strlen(list->closedBracket) 
-    + strlen(list->lineBreak) + 1;
-    char* charSizeOfErrorId = calloc(sizeOfErrorId, sizeof(char));
+    + strlen(list->lineBreak);
+
+    char* errorId = calloc(sizeOfErrorId + 1, sizeof(char));
+
+    strcat(errorId, list->openedBracket);
+    strcat(errorId, list->quotes);
+    strcat(errorId, list->error);
+    strcat(errorId, list->quotes);
+    strcat(errorId, list->colon);
+    strcat(errorId, list->quotes);
+    strcat(errorId, list->errorId);
+    strcat(errorId, list->quotes);
+    strcat(errorId, list->closedBracket);
+    strcat(errorId, list->lineBreak);
+
+    char* charSizeOfErrorId = calloc(strlen(errorId), sizeof(char));
 
     sprintf(charSizeOfErrorId, "%ld", sizeOfErrorId);
 
@@ -725,27 +744,19 @@ char* BuildResponseErrorId(list_t* list)
     strcat(contentLength, list->length);
     strcat(contentLength, charSizeOfErrorId);
 
-    size_t sizeOfResponse = strlen(list->status) + strlen(list->type) + strlen(list->connection) + strlen(contentLength) 
-    + strlen(list->lineBreak) + strlen(charSizeOfErrorId) + 1;
+    size_t sizeOfResponse = strlen(list->status) + strlen(list->type) + strlen(contentLength) + strlen(list->connection)
+    + strlen(list->lineBreak) + strlen(errorId);
 
-    char* buildedResponse = calloc(sizeOfResponse, sizeof(char));
+    char* buildedResponse = calloc(sizeOfResponse + 1, sizeof(char));
     strcat(buildedResponse, list->status);
     strcat(buildedResponse, list->type);
     strcat(buildedResponse, contentLength);
-    strcat(buildedResponse, list->lineBreak);
     strcat(buildedResponse, list->connection);
     strcat(buildedResponse, list->lineBreak);
-    
-    strcat(buildedResponse, list->openedBracket);
-    strcat(buildedResponse, list->quotes);
-    strcat(buildedResponse, list->error);
-    strcat(buildedResponse, list->quotes);
-    strcat(buildedResponse, list->colon);
-    strcat(buildedResponse, list->quotes);
-    strcat(buildedResponse, list->errorId);
-    strcat(buildedResponse, list->quotes);
-    strcat(buildedResponse, list->closedBracket);
-    strcat(buildedResponse, list->lineBreak);
+    strcat(buildedResponse, errorId);
+
+    free(errorId);
+    free(charSizeOfErrorId);
 
     return buildedResponse;
 }
