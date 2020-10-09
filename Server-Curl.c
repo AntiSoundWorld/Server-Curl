@@ -22,6 +22,7 @@ typedef struct List
     char* colon;
     char* comma;
     char* errorValue;
+    char* error;
     char* errorId;
 }list_t;
 typedef struct Parse
@@ -501,11 +502,15 @@ list_t* List()
     list->connection = calloc(strlen(connection) + 1, sizeof(char));
     strcpy(list->connection, connection);
 
-    char errorValue[] = "error: you entered incorrect values\n";
+    char errorValue[] = "You entered incorrect value";
     list->errorValue = calloc(strlen(errorValue) + 1, sizeof(char));
     strcpy(list->errorValue, errorValue);
 
-    char errorId[] = "error: you entered incorrect id\n";
+    char error[] = "error";
+    list->error = calloc(strlen(error) + 1, sizeof(char));
+    strcpy(list->error, error);    
+
+    char errorId[] = "You entered incorrect id";
     list->errorId = calloc(strlen(errorId) + 1, sizeof(char));
     strcpy(list->errorId, errorId);
 
@@ -671,16 +676,19 @@ char* BuildResponseRead(list_t* list, char* names)
 
 char* BuildResponseErrorValue(list_t* list)
 {
-    size_t sizeOfErrorValue = strlen(list->errorValue);
+ size_t sizeOfErrorValue = strlen(list->openedBracket) + strlen(list->quotes) + strlen(list->error) + strlen(list->quotes) 
+    + strlen(list->colon) + strlen(list->quotes) + strlen(list->errorValue) + strlen(list->quotes) +  strlen(list->closedBracket) 
+    + strlen(list->lineBreak) + 1;
     char* charSizeOfErrorValue = calloc(sizeOfErrorValue, sizeof(char));
+
     sprintf(charSizeOfErrorValue, "%ld", sizeOfErrorValue);
 
     char* contentLength = calloc(strlen(list->length) + sizeOfErrorValue + 1, sizeof(char));
     strcat(contentLength, list->length);
     strcat(contentLength, charSizeOfErrorValue);
 
-    size_t sizeOfResponse = strlen(list->status) + strlen(list->type) + strlen(list->connection) + strlen(contentLength) + strlen(list->lineBreak) 
-    + strlen(list->errorValue) + 1;
+    size_t sizeOfResponse = strlen(list->status) + strlen(list->type) + strlen(list->connection) + strlen(contentLength) 
+    + strlen(list->lineBreak) + strlen(charSizeOfErrorValue) + 1;
 
     char* buildedResponse = calloc(sizeOfResponse, sizeof(char));
     strcat(buildedResponse, list->status);
@@ -689,23 +697,36 @@ char* BuildResponseErrorValue(list_t* list)
     strcat(buildedResponse, list->lineBreak);
     strcat(buildedResponse, list->connection);
     strcat(buildedResponse, list->lineBreak);
+    
+    strcat(buildedResponse, list->openedBracket);
+    strcat(buildedResponse, list->quotes);
+    strcat(buildedResponse, list->error);
+    strcat(buildedResponse, list->quotes);
+    strcat(buildedResponse, list->colon);
+    strcat(buildedResponse, list->quotes);
     strcat(buildedResponse, list->errorValue);
+    strcat(buildedResponse, list->quotes);
+    strcat(buildedResponse, list->closedBracket);
+    strcat(buildedResponse, list->lineBreak);
 
     return buildedResponse;
 }
 
 char* BuildResponseErrorId(list_t* list)
 {
-    size_t sizeOfErrorId = strlen(list->errorId);
+    size_t sizeOfErrorId = strlen(list->openedBracket) + strlen(list->quotes) + strlen(list->error) + strlen(list->quotes) 
+    + strlen(list->colon) + strlen(list->quotes) + strlen(list->errorId) + strlen(list->quotes) +  strlen(list->closedBracket) 
+    + strlen(list->lineBreak) + 1;
     char* charSizeOfErrorId = calloc(sizeOfErrorId, sizeof(char));
+
     sprintf(charSizeOfErrorId, "%ld", sizeOfErrorId);
 
     char* contentLength = calloc(strlen(list->length) + sizeOfErrorId + 1, sizeof(char));
     strcat(contentLength, list->length);
     strcat(contentLength, charSizeOfErrorId);
 
-    size_t sizeOfResponse = strlen(list->status) + strlen(list->type) + strlen(list->connection) + strlen(contentLength) + strlen(list->lineBreak) 
-    + strlen(list->errorValue) + 1;
+    size_t sizeOfResponse = strlen(list->status) + strlen(list->type) + strlen(list->connection) + strlen(contentLength) 
+    + strlen(list->lineBreak) + strlen(charSizeOfErrorId) + 1;
 
     char* buildedResponse = calloc(sizeOfResponse, sizeof(char));
     strcat(buildedResponse, list->status);
@@ -714,7 +735,17 @@ char* BuildResponseErrorId(list_t* list)
     strcat(buildedResponse, list->lineBreak);
     strcat(buildedResponse, list->connection);
     strcat(buildedResponse, list->lineBreak);
+    
+    strcat(buildedResponse, list->openedBracket);
+    strcat(buildedResponse, list->quotes);
+    strcat(buildedResponse, list->error);
+    strcat(buildedResponse, list->quotes);
+    strcat(buildedResponse, list->colon);
+    strcat(buildedResponse, list->quotes);
     strcat(buildedResponse, list->errorId);
+    strcat(buildedResponse, list->quotes);
+    strcat(buildedResponse, list->closedBracket);
+    strcat(buildedResponse, list->lineBreak);
 
     return buildedResponse;
 }
@@ -785,4 +816,3 @@ bool CheckErrorName(int socketClient, parse_t* parseRequest)
 
     return isErrorNameExist;
 }
-
