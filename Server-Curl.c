@@ -7,9 +7,11 @@
 
 typedef struct List
 {
+    char* unknownFieldId;
     char* bodyEmptyTask;
     char* status200;
     char* status201;
+    char* status400;
     char* type;
     char* length;
     char* connection;
@@ -350,7 +352,7 @@ task_t* Create (int socketClient, parse_t* parseRequest, task_t* head)
 
         head->nextTask = NULL;
         
-        SendResponse(socketClient, BuildResponseConfirmationRequest(List(),  head->id));
+        SendResponse(socketClient, BuildResponseConfirmationRequest(List(), head->id));
 
         return head;
     }
@@ -370,6 +372,8 @@ task_t* Create (int socketClient, parse_t* parseRequest, task_t* head)
     pointer->nextTask->name = calloc(strlen(name) + 1, sizeof(char));
     strcpy(pointer->nextTask->name, name);
     pointer->nextTask->nextTask = NULL;
+
+    SendResponse(socketClient, BuildResponseConfirmationRequest(List(), pointer->nextTask->id));
 
     return head;
 }
@@ -422,7 +426,7 @@ void Update(int socketClient, task_t* head, parse_t* parseRequest)
     strcat(pointer->name, newName);
     free(newName);
 
-    SendResponse(socketClient, BuildResponseConfirmationRequest(List(), pointer->id));
+    SendResponse(socketClient, BuildResponseConfirmationRequest(List(), -1));
 }
 
 task_t* Delete(int socketClient, task_t* head, parse_t* parseRequest)
@@ -442,7 +446,7 @@ task_t* Delete(int socketClient, task_t* head, parse_t* parseRequest)
         pointer = head;
         ReassigneId(head);
 
-        SendResponse(socketClient, BuildResponseConfirmationRequest(List(), pointer->id));
+        SendResponse(socketClient, BuildResponseConfirmationRequest(List(), -1));
         return head;
     }
 
@@ -476,7 +480,7 @@ task_t* Delete(int socketClient, task_t* head, parse_t* parseRequest)
 
     ReassigneId(head);
 
-    SendResponse(socketClient, BuildResponseConfirmationRequest(List(), pointer->id));
+    SendResponse(socketClient, BuildResponseConfirmationRequest(List(), -1));
     return head;
 }
 
@@ -488,6 +492,10 @@ list_t* List()
     list->bodyEmptyTask = calloc(strlen(bodyEmptyTask) + 1, sizeof(char));
     strcpy(list->bodyEmptyTask, bodyEmptyTask);
 
+    char unknownFieldId[] = "unknown field id";
+    list->unknownFieldId = calloc(strlen(unknownFieldId) + 1, sizeof(char));
+    strcpy(list->unknownFieldId, unknownFieldId);
+
     char status200[] = "HTTP/1.1 200 OK \n";
     list->status200 = calloc(strlen(status200) + 1, sizeof(char));
     strcpy(list->status200, status200);
@@ -495,6 +503,10 @@ list_t* List()
     char status201[] = "HTTP/1.1 201 Created \n";
     list->status201 = calloc(strlen(status201) + 1, sizeof(char));
     strcpy(list->status201, status201);
+
+    char status400[] = "HTTP/1.1 400 \n";
+    list->status400 = calloc(strlen(status400) + 1, sizeof(char));
+    strcpy(list->status400, status400);
 
     char type[] = "Content-Type: application/json \n";
     list->type = calloc(strlen(type) + 1, sizeof(char));
@@ -639,52 +651,73 @@ char* BuildResponseEmptyTask(list_t* list)
 
 char* BuildResponseConfirmationRequest(list_t* list, int id)
 {
-    char buffer[1024] = "\0";
-    sprintf(buffer, "%d", id);
+    if(id != -1)
+    {
+        char buffer[1024] = "\0";
+        sprintf(buffer, "%d", id);
 
-    char* charId = calloc(strlen(buffer), sizeof(char));
-    strcpy(charId, buffer);
+        char* charId = calloc(strlen(buffer), sizeof(char));
+        strcpy(charId, buffer);
 
-    size_t sizeOfResponseId = strlen(list->openedBracket) + strlen(list->quotes) + strlen(list->error) + strlen(list->quotes) 
-    + strlen(list->colon) + strlen(list->quotes) + strlen(charId) + strlen(list->quotes) + strlen(list->closedBracket) 
-    + strlen(list->lineBreak);
+        size_t sizeOfResponseId = strlen(list->openedBracket) + strlen(list->quotes) + strlen(list->error) + strlen(list->quotes) 
+        + strlen(list->colon) + strlen(list->quotes) + strlen(charId) + strlen(list->quotes) + strlen(list->closedBracket) 
+        + strlen(list->lineBreak);
 
-    char* jsonResponseId = calloc(sizeOfResponseId + 1, sizeof(char));
+        char* jsonResponseId = calloc(sizeOfResponseId + 1, sizeof(char));
 
-    strcat(jsonResponseId, list->openedBracket);
-    strcat(jsonResponseId, list->quotes);
-    strcat(jsonResponseId, list->responseId);
-    strcat(jsonResponseId, list->quotes);
-    strcat(jsonResponseId, list->colon);
-    strcat(jsonResponseId, list->quotes);
-    strcat(jsonResponseId, charId);
-    strcat(jsonResponseId, list->quotes);
-    strcat(jsonResponseId, list->closedBracket);
-    strcat(jsonResponseId, list->lineBreak);
+        strcat(jsonResponseId, list->openedBracket);
+        strcat(jsonResponseId, list->quotes);
+        strcat(jsonResponseId, list->responseId);
+        strcat(jsonResponseId, list->quotes);
+        strcat(jsonResponseId, list->colon);
+        strcat(jsonResponseId, list->quotes);
+        strcat(jsonResponseId, charId);
+        strcat(jsonResponseId, list->quotes);
+        strcat(jsonResponseId, list->closedBracket);
+        strcat(jsonResponseId, list->lineBreak);
 
-    char* charSizeOfResponseId = calloc(strlen(jsonResponseId), sizeof(char));
+        char* charSizeOfResponseId = calloc(strlen(jsonResponseId), sizeof(char));
 
-    sprintf(charSizeOfResponseId, "%ld", sizeOfResponseId);
+        sprintf(charSizeOfResponseId, "%ld", sizeOfResponseId);
 
-    char* contentLength = calloc(strlen(list->length) + strlen(jsonResponseId) + 1, sizeof(char));
+        char* contentLength = calloc(strlen(list->length) + strlen(jsonResponseId) + 1, sizeof(char));
+        strcat(contentLength, list->length);
+        strcat(contentLength, charSizeOfResponseId);
+
+        size_t sizeOfResponse = strlen(list->status201) + strlen(list->type) + strlen(contentLength) + strlen(list->lineBreak) 
+        + strlen(list->connection) + strlen(list->lineBreak) + strlen(jsonResponseId);
+
+        char* buildedResponse = calloc(sizeOfResponse + 1, sizeof(char));
+        strcat(buildedResponse, list->status201);
+        strcat(buildedResponse, list->type);
+        strcat(buildedResponse, contentLength);
+        strcat(buildedResponse, list->lineBreak);
+
+        strcat(buildedResponse, list->connection);
+        strcat(buildedResponse, list->lineBreak);
+        strcat(buildedResponse, jsonResponseId);
+
+        free(jsonResponseId);
+        free(charSizeOfResponseId);
+
+        return buildedResponse;
+    }
+
+
+
+    char* contentLength = calloc(strlen(list->length) + strlen("0") + 1, sizeof(char));
     strcat(contentLength, list->length);
-    strcat(contentLength, charSizeOfResponseId);
+    strcat(contentLength, "0");
 
-    size_t sizeOfResponse = strlen(list->status201) + strlen(list->type) + strlen(contentLength) + strlen(list->lineBreak) 
-    + strlen(list->connection) + strlen(list->lineBreak) + strlen(jsonResponseId);
+    size_t sizeOfResponse = strlen(list->status200) + strlen(list->type) + strlen(contentLength) + strlen(list->lineBreak) 
+    + strlen(list->connection);
 
     char* buildedResponse = calloc(sizeOfResponse + 1, sizeof(char));
-    strcat(buildedResponse, list->status201);
+    strcat(buildedResponse, list->status200);
     strcat(buildedResponse, list->type);
     strcat(buildedResponse, contentLength);
     strcat(buildedResponse, list->lineBreak);
-
     strcat(buildedResponse, list->connection);
-    strcat(buildedResponse, list->lineBreak);
-    strcat(buildedResponse, jsonResponseId);
-
-    free(jsonResponseId);
-    free(charSizeOfResponseId);
 
     return buildedResponse;
 }
@@ -774,7 +807,7 @@ char* BuildResponseErrorId(list_t* list)
     strcat(errorId, list->quotes);
     strcat(errorId, list->colon);
     strcat(errorId, list->quotes);
-    strcat(errorId, list->errorId);
+    strcat(errorId, list->unknownFieldId);
     strcat(errorId, list->quotes);
     strcat(errorId, list->closedBracket);
     strcat(errorId, list->lineBreak);
@@ -787,11 +820,11 @@ char* BuildResponseErrorId(list_t* list)
     strcat(contentLength, list->length);
     strcat(contentLength, charSizeOfErrorId);
 
-    size_t sizeOfResponse = strlen(list->status200) + strlen(list->type) + strlen(contentLength) + strlen(list->connection)
+    size_t sizeOfResponse = strlen(list->status400) + strlen(list->type) + strlen(contentLength) + strlen(list->connection)
     + strlen(list->lineBreak) + strlen(errorId);
 
     char* buildedResponse = calloc(sizeOfResponse + 1, sizeof(char));
-    strcat(buildedResponse, list->status200);
+    strcat(buildedResponse, list->status400);
     strcat(buildedResponse, list->type);
     strcat(buildedResponse, contentLength);
     strcat(buildedResponse, list->connection);
