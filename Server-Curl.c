@@ -380,11 +380,11 @@ task_t* Create (int socketClient, parse_t* parseRequest, task_t* head)
 
 void Read(int socketClient, task_t* head, parse_t* parseRequest)
 {
-    if(head == NULL)
+    if(CheckErrorId(socketClient, head, parseRequest))
     {   
-        SendResponse(socketClient, BuildResponseEmptyTask(List()));
         return;
     }
+
     task_t* pointer = head;
 
     char* buildedNames = NULL;
@@ -622,30 +622,45 @@ char* FindName(parse_t* parseRequest)
 
 char* BuildResponseEmptyTask(list_t* list)
 {
-    char* charSizeEmptyTask = calloc(strlen(list->bodyEmptyTask) + 1, sizeof(char));
-    sprintf(charSizeEmptyTask, "%ld", strlen(list->bodyEmptyTask));
+        size_t sizeOfErrorId = strlen(list->openedBracket) + strlen(list->quotes) + strlen(list->error) + strlen(list->quotes) 
+    + strlen(list->colon) + strlen(list->quotes) + strlen(list->bodyEmptyTask) + strlen(list->quotes) + strlen(list->closedBracket) 
+    + strlen(list->lineBreak);
 
-    char* contentLength = calloc(strlen(list->length) + strlen(list->bodyEmptyTask) + strlen(list->lineBreak) + 1, sizeof(char)); 
+    char* errorEmptyTask = calloc(sizeOfErrorId + 1, sizeof(char));
+
+    strcat(errorEmptyTask, list->openedBracket);
+    strcat(errorEmptyTask, list->quotes);
+    strcat(errorEmptyTask, list->error);
+    strcat(errorEmptyTask, list->quotes);
+    strcat(errorEmptyTask, list->colon);
+    strcat(errorEmptyTask, list->quotes);
+    strcat(errorEmptyTask, list->bodyEmptyTask);
+    strcat(errorEmptyTask, list->quotes);
+    strcat(errorEmptyTask, list->closedBracket);
+    strcat(errorEmptyTask, list->lineBreak);
+
+    char* charSizeOfErrorId = calloc(strlen(errorEmptyTask), sizeof(char));
+
+    sprintf(charSizeOfErrorId, "%ld", sizeOfErrorId);
+
+    char* contentLength = calloc(strlen(list->length) + sizeOfErrorId + 1, sizeof(char));
     strcat(contentLength, list->length);
-    strcat(contentLength, charSizeEmptyTask);
-    strcat(contentLength, list->lineBreak);
-    
-    size_t sizeOfrequest = strlen(list->status200) + strlen(list->type) + strlen(contentLength) + strlen(list->connection) 
-    + strlen(list->lineBreak) + strlen(list->bodyEmptyTask);
+    strcat(contentLength, charSizeOfErrorId);
 
-    char* buildedResponse = calloc(sizeOfrequest + 1, sizeof(char));
+    size_t sizeOfResponse = strlen(list->status400) + strlen(list->type) + strlen(contentLength) + strlen(list->connection)
+    + strlen(list->lineBreak) + strlen(errorEmptyTask);
 
-    strcat(buildedResponse, list->status200);
+    char* buildedResponse = calloc(sizeOfResponse + 1, sizeof(char));
+    strcat(buildedResponse, list->status400);
     strcat(buildedResponse, list->type);
     strcat(buildedResponse, contentLength);
     strcat(buildedResponse, list->connection);
     strcat(buildedResponse, list->lineBreak);
-    strcat(buildedResponse, list->bodyEmptyTask);
+    strcat(buildedResponse, errorEmptyTask);
 
-    //printf("%s \n", buildedResponse); //show full response
-    free(charSizeEmptyTask);
-    free(contentLength);
-    FreeList(list);
+    free(errorEmptyTask);
+    free(charSizeOfErrorId);
+
     return buildedResponse;
 }
 
@@ -656,12 +671,11 @@ char* BuildResponseConfirmationRequest(list_t* list, int id)
         char buffer[1024] = "\0";
         sprintf(buffer, "%d", id);
 
-        char* charId = calloc(strlen(buffer), sizeof(char));
+        char* charId = calloc(strlen(buffer) + 1, sizeof(char));
         strcpy(charId, buffer);
 
-        size_t sizeOfResponseId = strlen(list->openedBracket) + strlen(list->quotes) + strlen(list->error) + strlen(list->quotes) 
-        + strlen(list->colon) + strlen(list->quotes) + strlen(charId) + strlen(list->quotes) + strlen(list->closedBracket) 
-        + strlen(list->lineBreak);
+        size_t sizeOfResponseId = strlen(list->openedBracket) + strlen(list->quotes) + strlen(list->responseId) + strlen(list->quotes) 
+        + strlen(list->colon) + strlen(list->quotes) + strlen(charId) + strlen(list->quotes) + strlen(list->closedBracket) + strlen(list->lineBreak);
 
         char* jsonResponseId = calloc(sizeOfResponseId + 1, sizeof(char));
 
@@ -860,12 +874,18 @@ bool CheckErrorId(int socketClient, task_t* head, parse_t* parseRequest)
 {
     bool isErrorExist = false;
 
+
+    if(head == NULL)
+    {
+        SendResponse(socketClient, BuildResponseEmptyTask(List()));
+        return isErrorExist = true;
+    }
+
     task_t* lastTask = head;
     while(lastTask->nextTask != NULL)
     {
         lastTask = lastTask->nextTask;
     }
-
     int id = FindId(parseRequest);
     
     if(id == -1)
