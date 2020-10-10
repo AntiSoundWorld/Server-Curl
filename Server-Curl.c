@@ -66,6 +66,12 @@ char* BuildResponseErrorValue(list_t* list);
 char* BuildResponseErrorId(list_t* list);
 bool CheckErrorId(int socketClient, task_t* head, parse_t* parseRequest);
 bool CheckErrorName(int socketClient, parse_t* parseRequest);
+char* IsolateParametrs(parse_t* parseRequest);
+char* IsolateFirstParametr(parse_t* parseRequest);
+char* IsolateSecondParametr(parse_t* parseRequest);
+char* ParseFirstParametr(parse_t* ParseRequest);
+char* ParseSecondParametr(parse_t* ParseRequest);
+
 
 int main()
 {
@@ -107,7 +113,7 @@ parse_t* Recieve(int clientSocket, parse_t* parseRequest)
     parseRequest->request = calloc(sizeOfBuffer + 1, sizeof(char));
     strcpy(parseRequest->request, buffer);
 
-    //printf("\nRequest:\n %s\n ", parseRequest->request);  //show full request
+    printf("\nRequest:\n %s\n ", parseRequest->request);  //show full request
     return parseRequest;
 }
 
@@ -406,9 +412,9 @@ void Update(int socketClient, task_t* head, parse_t* parseRequest)
         return;
     }
 
-    int id = FindId(parseRequest);
+    int id = atoi(ParseFirstParametr(parseRequest));
     
-    char* newName = FindName(parseRequest);
+    char* newName = ParseSecondParametr(parseRequest);
     if(newName == NULL)
     {
         SendResponse(socketClient, BuildResponseErrorValue(List()));
@@ -437,7 +443,9 @@ task_t* Delete(int socketClient, task_t* head, parse_t* parseRequest)
         return head;
     }
 
-    int id = FindId(parseRequest);
+    char* charId = ParseFirstParametr(parseRequest);
+    int id = atoi(charId);
+    free(charId);
 
     task_t* pointer = head;
     if(id == 0)
@@ -644,9 +652,10 @@ char* BuildResponseEmptyTask(list_t* list)
 
     sprintf(charSizeOfErrorId, "%ld", sizeOfErrorId);
 
-    char* contentLength = calloc(strlen(list->length) + sizeOfErrorId + 1, sizeof(char));
+    char* contentLength = calloc(strlen(list->length) + sizeOfErrorId + strlen(list->lineBreak) + 1, sizeof(char));
     strcat(contentLength, list->length);
     strcat(contentLength, charSizeOfErrorId);
+    strcat(contentLength, list->lineBreak);
 
     size_t sizeOfResponse = strlen(list->status400) + strlen(list->type) + strlen(contentLength) + strlen(list->connection)
     + strlen(list->lineBreak) + strlen(errorEmptyTask);
@@ -835,13 +844,14 @@ char* BuildResponseErrorId(list_t* list)
     strcat(contentLength, list->length);
     strcat(contentLength, charSizeOfErrorId);
 
-    size_t sizeOfResponse = strlen(list->status400) + strlen(list->type) + strlen(contentLength) + strlen(list->connection)
+    size_t sizeOfResponse = strlen(list->status400) + strlen(list->type) + strlen(contentLength) + strlen(list->lineBreak) + strlen(list->connection)
     + strlen(list->lineBreak) + strlen(errorId);
 
     char* buildedResponse = calloc(sizeOfResponse + 1, sizeof(char));
     strcat(buildedResponse, list->status400);
     strcat(buildedResponse, list->type);
     strcat(buildedResponse, contentLength);
+    strcat(buildedResponse, list->lineBreak);
     strcat(buildedResponse, list->connection);
     strcat(buildedResponse, list->lineBreak);
     strcat(buildedResponse, errorId);
@@ -876,12 +886,17 @@ bool CheckErrorId(int socketClient, task_t* head, parse_t* parseRequest)
     bool isErrorExist = false;
 
     task_t* lastTask = head;
-    while(lastTask->nextTask != NULL)
+    if(head != NULL)
     {
-        lastTask = lastTask->nextTask;
+        while(lastTask->nextTask != NULL)
+        {
+            lastTask = lastTask->nextTask;
+        }
     }
     
-    int id = FindId(parseRequest);
+    char* charId = ParseFirstParametr(parseRequest);
+    int id = atoi(charId);
+    free(charId);
     
     if(id == -1)
     {
@@ -907,8 +922,18 @@ bool CheckErrorId(int socketClient, task_t* head, parse_t* parseRequest)
 bool CheckErrorName(int socketClient, parse_t* parseRequest)
 {
     bool isErrorNameExist = false;
+    char* method = ParseMethod(parseRequest);
 
-    char* name = FindName(parseRequest);
+    char* name = NULL;
+
+    if(strcmp(method, "POST") == 0)
+    {
+        name = FindName(parseRequest);
+    }
+    if(strcmp(method, "PUT") == 0 ||  strcmp(method, "DELETE") == 0)
+    {
+        name = ParseSecondParametr(parseRequest);
+    }
 
     if(name == NULL)
     {
@@ -916,5 +941,178 @@ bool CheckErrorName(int socketClient, parse_t* parseRequest)
         return isErrorNameExist = true;
     }
 
+    free(method);
+    free(name);
+
     return isErrorNameExist;
+}
+
+char* IsolateParametrs(parse_t* parseRequest)
+{
+    char* recieve = parseRequest->request;
+    size_t sizeOfRecieve = strlen(recieve);
+
+    int i = 0;
+    while(i != sizeOfRecieve)
+    {
+        if(recieve[i] == '?')
+        {
+            break;
+        }
+        i++;
+    }
+
+    i++;
+
+    char bufferParametrs[1024] = "\0";
+
+    int j = 0;
+    while(recieve[i] != ' ')
+    {
+        bufferParametrs[j] = recieve[i];
+        i++;
+        j++;
+    }
+
+    char* parametrs = calloc(strlen(bufferParametrs) + 1, sizeof(char));
+    strcat(parametrs, bufferParametrs);
+
+    printf("parametrs:\n%s\n", parametrs);
+    return parametrs;
+}
+
+char* IsolateFirstParametr(parse_t* parseRequest)
+{
+    char* parametrs = IsolateParametrs(parseRequest);
+    size_t sizeOfParametrs = strlen(parametrs);
+
+    char bufferOfFirstParametrs[1024] = "\0";
+
+    int i = 0;
+    while(i != sizeOfParametrs)
+    {
+        if(parametrs[i] == ' ' || parametrs[i] == '&')
+        {
+            break;
+        }
+        bufferOfFirstParametrs[i] = parametrs[i];
+        i++;
+    }
+    char* firstParametrs = calloc(strlen(bufferOfFirstParametrs) + 1, sizeof(char));
+    strcat(firstParametrs, bufferOfFirstParametrs);
+
+    free(parametrs);
+    printf("IsolateFirstParametr:\n%s\n", firstParametrs);
+
+    return firstParametrs;
+}
+
+char* IsolateSecondParametr(parse_t* parseRequest)
+{
+    char* parametrs = IsolateParametrs(parseRequest);
+    size_t sizeOfParametrs = strlen(parametrs);
+
+    int i = 0;
+    while(i != sizeOfParametrs)
+    {
+        if(parametrs[i] == '&')
+        {
+            break;
+        }
+        i++;
+    }
+
+    i++;
+
+    char bufferOfSecondParametr[1024] = "\0";
+
+    int j = 0;
+    while(i != sizeOfParametrs)
+    {
+        if(parametrs[i] == ' ')
+        {
+            break;
+        }
+        bufferOfSecondParametr[j] = parametrs[i];
+        i++;
+        j++;
+    }
+    char* secondParametrs = calloc(strlen(bufferOfSecondParametr) + 1, sizeof(char));
+    strcat(secondParametrs, bufferOfSecondParametr);
+
+    printf("secondParametrs:\n%s\n", secondParametrs);
+
+    free(parametrs);
+    return secondParametrs;
+}
+
+char* ParseFirstParametr(parse_t* ParseRequest)
+{
+    char* isolatedFirstParametr = IsolateFirstParametr(ParseRequest);
+
+    size_t sizeOfIsolatedFirstParametr = strlen(isolatedFirstParametr);
+
+    int i = 0;
+    while(i != sizeOfIsolatedFirstParametr)
+    {
+        if(isolatedFirstParametr[i] == '=')
+        {
+            break;
+        }
+        i++;
+    }
+    i++;
+
+    char bufferOfFirstParametr[1024] = "\0";
+
+    int j = 0;
+    while(i != sizeOfIsolatedFirstParametr)
+    {
+        bufferOfFirstParametr[j] = isolatedFirstParametr[i];
+        i++;
+        j++;
+    }
+
+    char* parseFirstParametr = calloc(strlen(bufferOfFirstParametr) + 1, sizeof(char));
+    strcat(parseFirstParametr, bufferOfFirstParametr);
+
+    printf("ParseFirstParametr:\n%s\n", parseFirstParametr);
+
+    free(isolatedFirstParametr);
+    return parseFirstParametr;
+}
+
+char* ParseSecondParametr(parse_t* ParseRequest)
+{
+    char* isolatedSecondParametr = IsolateSecondParametr(ParseRequest);
+
+    size_t sizeOfIsolatedSecondParametr = strlen(isolatedSecondParametr);
+
+    int i = 0;
+    while(i != sizeOfIsolatedSecondParametr)
+    {
+        if(isolatedSecondParametr[i] == '=')
+        {
+            break;
+        }
+        i++;
+    }
+    i++;
+
+    char bufferOfSecondParametr[1024] = "\0";
+
+    int j = 0;
+    while(i != sizeOfIsolatedSecondParametr)
+    {
+        bufferOfSecondParametr[j] = isolatedSecondParametr[i];
+        i++;
+        j++;
+    }
+
+    char* secondParametr = calloc(strlen(bufferOfSecondParametr) + 1, sizeof(char));
+    strcat(secondParametr, bufferOfSecondParametr);
+
+    free(isolatedSecondParametr);
+
+    return secondParametr;
 }
