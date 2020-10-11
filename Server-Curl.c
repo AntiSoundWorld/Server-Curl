@@ -31,6 +31,7 @@ typedef struct List
 typedef struct Parse
 {
     char* request;
+    char* method;
 }parse_t;
 
 typedef struct Task
@@ -42,7 +43,7 @@ typedef struct Task
 
 void SetSocket();
 parse_t* Recieve(int clientSocket, parse_t* parseRequest);
-char* ParseMethod(parse_t* parseRequest);
+void ParseMethod(parse_t* parseRequest);
 char* IsolateBody(parse_t* parseRequest);
 int ParseId(int i, parse_t* parseRequest);
 char* ParseBody(int i, parse_t* parseRequest);
@@ -58,7 +59,7 @@ list_t* List();
 void FreeList(list_t* list);
 void ReassigneId(task_t* head);
 char* FindName(parse_t* parseRequest);
-int FindId(parse_t* parseRequest);
+bool FindId(parse_t* parseRequest);
 char* BuildResponseRead(list_t* list, char* names);
 char* BuildResponseConfirmationRequest(list_t* list, int id);
 char* BuildResponseEmptyTask(list_t* list);
@@ -71,7 +72,7 @@ char* IsolateFirstParametr(parse_t* parseRequest);
 char* IsolateSecondParametr(parse_t* parseRequest);
 char* ParseFirstParametr(parse_t* ParseRequest);
 char* ParseSecondParametr(parse_t* ParseRequest);
-
+void FreeParse(parse_t* parseRequest);
 
 int main()
 {
@@ -91,17 +92,18 @@ void SetSocket()
     listen(serverSocket, 1);
 
     task_t* head = NULL;
-    parse_t* parseRequest = (parse_t *)malloc(sizeof(parse_t));
 
     while(true)
     {
+        parse_t* parseRequest = (parse_t *)malloc(sizeof(parse_t));
         int clientSocket = accept(serverSocket, NULL, NULL);
 
         Recieve(clientSocket, parseRequest);
+        ParseMethod(parseRequest);
 
         head = MethodInterractive(clientSocket, head, parseRequest);
 
-        free(parseRequest->request);
+        FreeParse(parseRequest);
     }
 }
 parse_t* Recieve(int clientSocket, parse_t* parseRequest)
@@ -117,7 +119,7 @@ parse_t* Recieve(int clientSocket, parse_t* parseRequest)
     return parseRequest;
 }
 
-char* ParseMethod(parse_t* parseRequest)
+void ParseMethod(parse_t* parseRequest)
 {
     char* request = parseRequest->request;
     char buffer[100] = "\0";
@@ -131,10 +133,9 @@ char* ParseMethod(parse_t* parseRequest)
     }
     
     size_t sizeOfBuffer = strlen(buffer);
-    char* method = calloc(sizeOfBuffer + 1, sizeof(char));
-    strcpy(method, buffer);
+    parseRequest->method = calloc(sizeOfBuffer + 1, sizeof(char));
+    strcpy(parseRequest->method, buffer);
     //printf("Method \n%s\n", parseRequest->method);   //show method
-    return method;
 }
 
 char* IsolateBody(parse_t* parseRequest)
@@ -223,7 +224,7 @@ char* ParseBody(int i, parse_t* parseRequest)
 
 task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest)
 {
-    char* method = ParseMethod(parseRequest);
+    char* method = parseRequest->method;
     
     if(strcmp(method, "GET") == 0)
     {
@@ -241,11 +242,8 @@ task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest
     {
         return Delete(socketClient, head, parseRequest);
     }
-    free(method);
-
     return head;
 }
-
 
 void SendResponse(int clientSocket, char* buildedResponse)
 {   
@@ -402,6 +400,7 @@ void Read(int socketClient, task_t* head, parse_t* parseRequest)
     }
     SendResponse(socketClient, BuildResponseRead(List(), buildedNames));
 
+    free(buildedNames);
     //printf("\n\nbuildedNames\n %s\n\n", buildedNames);
 }
 
@@ -412,7 +411,9 @@ void Update(int socketClient, task_t* head, parse_t* parseRequest)
         return;
     }
 
-    int id = atoi(ParseFirstParametr(parseRequest));
+    char* charId = ParseFirstParametr(parseRequest);
+    int id = atoi(charId);
+    free(charId);
     
     char* newName = ParseSecondParametr(parseRequest);
     if(newName == NULL)
@@ -432,7 +433,7 @@ void Update(int socketClient, task_t* head, parse_t* parseRequest)
     pointer->name = calloc(strlen(newName) + 1, sizeof(char));
     strcat(pointer->name, newName);
     free(newName);
-
+    
     SendResponse(socketClient, BuildResponseConfirmationRequest(List(), -1));
 }
 
@@ -493,92 +494,7 @@ task_t* Delete(int socketClient, task_t* head, parse_t* parseRequest)
     return head;
 }
 
-list_t* List()
-{
-    list_t* list = malloc(sizeof(list_t));
 
-    char bodyEmptyTask[] = "The task is empty";
-    list->bodyEmptyTask = calloc(strlen(bodyEmptyTask) + 1, sizeof(char));
-    strcpy(list->bodyEmptyTask, bodyEmptyTask);
-
-    char unknownFieldId[] = "unknown field id";
-    list->unknownFieldId = calloc(strlen(unknownFieldId) + 1, sizeof(char));
-    strcpy(list->unknownFieldId, unknownFieldId);
-
-    char status200[] = "HTTP/1.1 200 OK \n";
-    list->status200 = calloc(strlen(status200) + 1, sizeof(char));
-    strcpy(list->status200, status200);
-
-    char status201[] = "HTTP/1.1 201 Created \n";
-    list->status201 = calloc(strlen(status201) + 1, sizeof(char));
-    strcpy(list->status201, status201);
-
-    char status400[] = "HTTP/1.1 400 \n";
-    list->status400 = calloc(strlen(status400) + 1, sizeof(char));
-    strcpy(list->status400, status400);
-
-    char type[] = "Content-Type: application/json \n";
-    list->type = calloc(strlen(type) + 1, sizeof(char));
-    strcpy(list->type, type);
-
-    char length[] = "Content-Length: ";
-    list->length = calloc(strlen(length) + 1, sizeof(char));
-    strcpy(list->length, length);
-
-    char connection[] = "Connection: keep-alive \n";
-    list->connection = calloc(strlen(connection) + 1, sizeof(char));
-    strcpy(list->connection, connection);
-
-    char errorValue[] = "You entered incorrect value";
-    list->errorValue = calloc(strlen(errorValue) + 1, sizeof(char));
-    strcpy(list->errorValue, errorValue);
-
-    char error[] = "error";
-    list->error = calloc(strlen(error) + 1, sizeof(char));
-    strcpy(list->error, error);    
-
-    char errorId[] = "You entered incorrect id";
-    list->errorId = calloc(strlen(errorId) + 1, sizeof(char));
-    strcpy(list->errorId, errorId);
-
-    char lineBreak[] = "\n";
-    list->lineBreak = calloc(strlen(lineBreak) + 1, sizeof(char));
-    strcpy(list->lineBreak, lineBreak);
-
-    char responseId[] = "Id";
-    list->responseId = calloc(strlen(responseId) + 1, sizeof(char));
-    strcpy(list->responseId, responseId);
-
-    char responseName[] = "name";
-    list->responseName = calloc(strlen(responseName) + 1, sizeof(char));;
-    strcpy(list->responseName, responseName);
-
-    char space[] = " ";
-    list->space = calloc(strlen(space) + 1, sizeof(char));;
-    strcpy(list->space, space);
-
-    char openedBracket[] = "{";
-    list->openedBracket = calloc(strlen(openedBracket) + 1, sizeof(char));;
-    strcpy(list->openedBracket, openedBracket);
-
-    char closedBracket[] = "}";
-    list->closedBracket = calloc(strlen(closedBracket) + 1, sizeof(char));;;
-    strcpy(list->closedBracket, closedBracket);
-
-    char quotes[] = "\"";
-    list->quotes = calloc(strlen(quotes) + 1, sizeof(char));;
-    strcpy(list->quotes, quotes);
-
-    char colon[] = ":";
-    list->colon = calloc(strlen(colon) + 1, sizeof(char));;
-    strcpy(list->colon, colon);
-
-    char comma[] = ",";
-    list->comma = calloc(strlen(comma) + 1, sizeof(char));;
-    strcpy(list->comma, comma);
-
-    return list;
-}
 
 void ReassigneId(task_t* head)
 {
@@ -592,24 +508,23 @@ void ReassigneId(task_t* head)
     }
 }
 
-int FindId(parse_t* parseRequest)
+bool FindId(parse_t* parseRequest)
 {
-    char* body = IsolateBody(parseRequest);
-    size_t sizeOfBody = strlen(body);
+    bool isIdExist = false;
+
+    char* parametrs = IsolateParametrs(parseRequest);
+    size_t sizeOfParametrs = strlen(parametrs);
 
     int i = 0;
-    while(i != sizeOfBody - 2)
+    while(i != sizeOfParametrs - 2)
     {
-        if(body[i] == 'i' && body[i + 1] == 'd')
+        if(parametrs[i] == 'i' && parametrs[i + 1] == 'd')
         {
-            char* charId = ParseBody(i, parseRequest);
-            int id = atoi(charId);
-            free(charId);
-            return id;
+            return isIdExist = true;
         }
         i++;
     }
-    return -1;
+    return isIdExist;
 }
 
 char* FindName(parse_t* parseRequest)
@@ -618,14 +533,16 @@ char* FindName(parse_t* parseRequest)
     size_t sizeOfBody = strlen(body);
 
     int i = 0;
-    while(i != sizeOfBody - 4)
+    while(i != sizeOfBody - 3)
     {
         if(body[i] == 'n' && body[i + 1] == 'a' && body[i + 2] == 'm' && body[i + 3] == 'e')
         {
-           return ParseBody(i, parseRequest);
+            free(body);
+            return ParseBody(i, parseRequest);
         }
         i++;
     }
+    free(body);
     return NULL;
 }
 
@@ -670,6 +587,7 @@ char* BuildResponseEmptyTask(list_t* list)
 
     free(errorEmptyTask);
     free(charSizeOfErrorId);
+    FreeList(list);
 
     return buildedResponse;
 }
@@ -723,11 +641,12 @@ char* BuildResponseConfirmationRequest(list_t* list, int id)
 
         free(jsonResponseId);
         free(charSizeOfResponseId);
+        free(charId);
+        free(contentLength);
+        FreeList(list);
 
         return buildedResponse;
     }
-
-
 
     char* contentLength = calloc(strlen(list->length) + strlen("0") + 1, sizeof(char));
     strcat(contentLength, list->length);
@@ -742,6 +661,9 @@ char* BuildResponseConfirmationRequest(list_t* list, int id)
     strcat(buildedResponse, contentLength);
     strcat(buildedResponse, list->lineBreak);
     strcat(buildedResponse, list->connection);
+
+    free(contentLength);
+    FreeList(list);
 
     return buildedResponse;
 }
@@ -769,7 +691,9 @@ char* BuildResponseRead(list_t* list, char* names)
     strcat(buildedResponse, list->connection);
     strcat(buildedResponse, list->lineBreak);
     strcat(buildedResponse, names);
-
+    
+    free(ContentLength);
+    free(charSizeOfNames);
     FreeList(list);
 
     return buildedResponse;
@@ -814,6 +738,8 @@ char* BuildResponseErrorValue(list_t* list)
     strcat(buildedResponse, errorValue);
     strcat(buildedResponse, list->lineBreak);
     
+    FreeList(list);
+
     return buildedResponse;
 }
 
@@ -858,94 +784,13 @@ char* BuildResponseErrorId(list_t* list)
 
     free(errorId);
     free(charSizeOfErrorId);
+    FreeList(list);
 
     return buildedResponse;
 }
 
-void FreeList(list_t* list)
-{
-    free(list->bodyEmptyTask);
-    free(list->status200);
-    free(list->type);
-    free(list->length);
-    free(list->connection);
-    free(list->lineBreak);
-    free(list->responseId);
-    free(list->responseName);
-    free(list->space);
-    free(list->openedBracket);
-    free(list->closedBracket);
-    free(list->quotes);
-    free(list->colon);
-    free(list->comma);
-    free(list);
-}
 
-bool CheckErrorId(int socketClient, task_t* head, parse_t* parseRequest)
-{
-    bool isErrorExist = false;
 
-    task_t* lastTask = head;
-    if(head != NULL)
-    {
-        while(lastTask->nextTask != NULL)
-        {
-            lastTask = lastTask->nextTask;
-        }
-    }
-    
-    char* charId = ParseFirstParametr(parseRequest);
-    int id = atoi(charId);
-    free(charId);
-    
-    if(id == -1)
-    {
-        SendResponse(socketClient, BuildResponseErrorId(List()));
-        return isErrorExist = true;
-    }
-
-    if(id < head->id)
-    {
-        SendResponse(socketClient, BuildResponseErrorId(List()));
-        return isErrorExist = true;
-    }
-    
-    if(id > lastTask->id)
-    {
-        SendResponse(socketClient, BuildResponseErrorId(List()));
-        return isErrorExist = true;
-    }
-    
-    return isErrorExist;
-}
-
-bool CheckErrorName(int socketClient, parse_t* parseRequest)
-{
-    bool isErrorNameExist = false;
-    char* method = ParseMethod(parseRequest);
-
-    char* name = NULL;
-
-    if(strcmp(method, "POST") == 0)
-    {
-        name = FindName(parseRequest);
-    }
-    if(strcmp(method, "PUT") == 0 ||  strcmp(method, "DELETE") == 0)
-    {
-        name = ParseSecondParametr(parseRequest);
-    }
-
-    if(name == NULL)
-    {
-        SendResponse(socketClient, BuildResponseErrorValue(List()));
-        return isErrorNameExist = true;
-    }
-
-    free(method);
-    free(name);
-
-    return isErrorNameExist;
-}
 
 char* IsolateParametrs(parse_t* parseRequest)
 {
@@ -1052,6 +897,7 @@ char* ParseFirstParametr(parse_t* ParseRequest)
 
     size_t sizeOfIsolatedFirstParametr = strlen(isolatedFirstParametr);
 
+
     int i = 0;
     while(i != sizeOfIsolatedFirstParametr)
     {
@@ -1115,4 +961,191 @@ char* ParseSecondParametr(parse_t* ParseRequest)
     free(isolatedSecondParametr);
 
     return secondParametr;
+}
+
+bool CheckErrorId(int socketClient, task_t* head, parse_t* parseRequest)
+{
+    bool isErrorExist = false;
+
+    task_t* lastTask = head;
+    if(head != NULL)
+    {
+        while(lastTask->nextTask != NULL)
+        {
+            lastTask = lastTask->nextTask;
+        }
+    }
+    
+    char* charId = ParseFirstParametr(parseRequest);
+    int id = atoi(charId);
+    free(charId);
+    
+    if(id == -1)
+    {
+        SendResponse(socketClient, BuildResponseErrorId(List()));
+        return isErrorExist = true;
+    }
+
+    if(id < head->id)
+    {
+        SendResponse(socketClient, BuildResponseErrorId(List()));
+        return isErrorExist = true;
+    }
+    
+    if(id > lastTask->id)
+    {
+        SendResponse(socketClient, BuildResponseErrorId(List()));
+        return isErrorExist = true;
+    }
+    
+    return isErrorExist;
+}
+
+bool CheckErrorName(int socketClient, parse_t* parseRequest)
+{
+    bool isErrorNameExist = false;
+    char* method = parseRequest->method;
+
+    char* name = NULL;
+
+    if(strcmp(method, "POST") == 0)
+    {
+        name = FindName(parseRequest);
+    }
+    if(strcmp(method, "PUT") == 0 ||  strcmp(method, "DELETE") == 0)
+    {
+        name = ParseSecondParametr(parseRequest);
+    }
+
+    if(name == NULL)
+    {
+        SendResponse(socketClient, BuildResponseErrorValue(List()));
+        return isErrorNameExist = true;
+    }
+
+    free(name);
+
+    return isErrorNameExist;
+}
+
+
+
+
+list_t* List()
+{
+    list_t* list = malloc(sizeof(list_t));
+
+    char bodyEmptyTask[] = "The task is empty";
+    list->bodyEmptyTask = calloc(strlen(bodyEmptyTask) + 1, sizeof(char));
+    strcpy(list->bodyEmptyTask, bodyEmptyTask);
+
+    char unknownFieldId[] = "unknown field id";
+    list->unknownFieldId = calloc(strlen(unknownFieldId) + 1, sizeof(char));
+    strcpy(list->unknownFieldId, unknownFieldId);
+
+    char status200[] = "HTTP/1.1 200 OK \n";
+    list->status200 = calloc(strlen(status200) + 1, sizeof(char));
+    strcpy(list->status200, status200);
+
+    char status201[] = "HTTP/1.1 201 Created \n";
+    list->status201 = calloc(strlen(status201) + 1, sizeof(char));
+    strcpy(list->status201, status201);
+
+    char status400[] = "HTTP/1.1 400 \n";
+    list->status400 = calloc(strlen(status400) + 1, sizeof(char));
+    strcpy(list->status400, status400);
+
+    char type[] = "Content-Type: application/json \n";
+    list->type = calloc(strlen(type) + 1, sizeof(char));
+    strcpy(list->type, type);
+
+    char length[] = "Content-Length: ";
+    list->length = calloc(strlen(length) + 1, sizeof(char));
+    strcpy(list->length, length);
+
+    char connection[] = "Connection: keep-alive \n";
+    list->connection = calloc(strlen(connection) + 1, sizeof(char));
+    strcpy(list->connection, connection);
+
+    char errorValue[] = "You entered incorrect value";
+    list->errorValue = calloc(strlen(errorValue) + 1, sizeof(char));
+    strcpy(list->errorValue, errorValue);
+
+    char error[] = "error";
+    list->error = calloc(strlen(error) + 1, sizeof(char));
+    strcpy(list->error, error);    
+
+    char errorId[] = "You entered incorrect id";
+    list->errorId = calloc(strlen(errorId) + 1, sizeof(char));
+    strcpy(list->errorId, errorId);
+
+    char lineBreak[] = "\n";
+    list->lineBreak = calloc(strlen(lineBreak) + 1, sizeof(char));
+    strcpy(list->lineBreak, lineBreak);
+
+    char responseId[] = "Id";
+    list->responseId = calloc(strlen(responseId) + 1, sizeof(char));
+    strcpy(list->responseId, responseId);
+
+    char responseName[] = "name";
+    list->responseName = calloc(strlen(responseName) + 1, sizeof(char));;
+    strcpy(list->responseName, responseName);
+
+    char space[] = " ";
+    list->space = calloc(strlen(space) + 1, sizeof(char));;
+    strcpy(list->space, space);
+
+    char openedBracket[] = "{";
+    list->openedBracket = calloc(strlen(openedBracket) + 1, sizeof(char));;
+    strcpy(list->openedBracket, openedBracket);
+
+    char closedBracket[] = "}";
+    list->closedBracket = calloc(strlen(closedBracket) + 1, sizeof(char));;;
+    strcpy(list->closedBracket, closedBracket);
+
+    char quotes[] = "\"";
+    list->quotes = calloc(strlen(quotes) + 1, sizeof(char));;
+    strcpy(list->quotes, quotes);
+
+    char colon[] = ":";
+    list->colon = calloc(strlen(colon) + 1, sizeof(char));;
+    strcpy(list->colon, colon);
+
+    char comma[] = ",";
+    list->comma = calloc(strlen(comma) + 1, sizeof(char));;
+    strcpy(list->comma, comma);
+
+    return list;
+}
+
+void FreeList(list_t* list)
+{
+    free(list->bodyEmptyTask);
+    free(list->status200);
+    free(list->status201);
+    free(list->status400);
+    free(list->type);
+    free(list->length);
+    free(list->connection);
+    free(list->lineBreak);
+    free(list->responseId);
+    free(list->responseName);
+    free(list->space);
+    free(list->openedBracket);
+    free(list->closedBracket);
+    free(list->quotes);
+    free(list->colon);
+    free(list->comma);
+    free(list->error);
+    free(list->errorId);
+    free(list->errorValue);
+    free(list->unknownFieldId);
+    free(list);
+}
+
+void FreeParse(parse_t* parseRequest)
+{
+    free(parseRequest->request);
+    free(parseRequest->method);
+    free(parseRequest);
 }
