@@ -58,22 +58,21 @@ task_t* Delete(int socketClient, task_t* head, parse_t* parseRequest);
 list_t* List();
 void FreeList(list_t* list);
 void ReassigneId(task_t* head);
-bool FindId(parse_t* parseRequest);
 char* BuildResponseRead(list_t* list, char* names);
 char* BuildResponseConfirmationRequest(list_t* list, int id);
 char* BuildResponseEmptyTask(list_t* list);
 char* BuildResponseErrorValue(list_t* list);
 char* BuildResponseErrorId(list_t* list);
-bool CheckParametrId(parse_t* parseRequest);
+bool CheckErrorParametrId(int socketClient, parse_t* parseRequest);
 bool CheckErrorId(int socketClient, task_t* head, parse_t* parseRequest);
-bool CheckParametrName(parse_t* parseRequest);
+bool CheckErrorParametrName(int socketClient, parse_t* parseRequest);
 bool CheckErrorName(int socketClient, parse_t* parseRequest);
 bool CheckParametrs(int socketClient, task_t* head, parse_t* parseRequest);
 char* IsolateParametrs(parse_t* parseRequest);
-char* IsolateFirstParametr(parse_t* parseRequest);
-char* IsolateSecondParametr(parse_t* parseRequest);
-char* ParseFirstParametr(parse_t* ParseRequest);
-char* ParseSecondParametr(parse_t* ParseRequest);
+char* IsolateIdParametr(parse_t* parseRequest);
+char* IsolateNameParametr(parse_t* parseRequest);
+char* ParseIdParametr(parse_t* ParseRequest);
+char* ParseNameParametr(parse_t* ParseRequest);
 void FreeParse(parse_t* parseRequest);
 
 int main()
@@ -121,108 +120,6 @@ parse_t* Recieve(int clientSocket, parse_t* parseRequest)
     return parseRequest;
 }
 
-void ParseMethod(parse_t* parseRequest)
-{
-    char* request = parseRequest->request;
-    char buffer[100] = "\0";
-
-    int i = 0;
-
-    while(request[i] != ' ')
-    {
-        buffer[i] = request[i];
-        i++;
-    }
-    
-    size_t sizeOfBuffer = strlen(buffer);
-    parseRequest->method = calloc(sizeOfBuffer + 1, sizeof(char));
-    strcpy(parseRequest->method, buffer);
-    //printf("Method \n%s\n", parseRequest->method);   //show method
-}
-
-char* IsolateBody(parse_t* parseRequest)
-{
-    char* request = parseRequest->request;
-    int sizeOfRequest = strlen(request);
-
-    int i = 0;
-    int j = 2;
-    
-    while(j < sizeOfRequest)
-    {
-        if(request[i] == '\n' && request[j] == '\n')
-        {
-            break;
-        }
-        i++;
-        j++;
-    }
-
-    int a = 0;
-    char buffer[1024] = "\0";
-
-    while(j < sizeOfRequest)
-    {
-        buffer[a] = request[j];
-        j++;
-        a++;
-    }
-    size_t sizeOfBuffer = strlen(buffer);
-    char* body = calloc(sizeOfBuffer + 1, sizeof(char));
-    strcpy(body, buffer);
-
-    return body;
-}
-
-char* ParseBody(parse_t* parseRequest)
-{
-    int i = 0;
-    char* body = IsolateBody(parseRequest);
-    size_t sizeOfBody = strlen(body);
-
-    while(i != sizeOfBody)
-    {
-        if(body[i] == ':')
-        {
-            break;
-        }
-        i++;
-    }
-
-    while(i != sizeOfBody)
-    {
-        if(body[i] == '\"')
-        {
-            break;
-        }
-        i++;
-    }
-
-    i++;
-
-    char buffer[1024] = "\0";
-    int j = 0;
-    while(i < sizeOfBody)
-    {
-        if(body[i] == '"')
-        {
-            break;
-        }
-        
-        buffer[j] = body[i];
-        i++;
-        j++;
-    }
-    size_t sizeOfBuffer = strlen(buffer);
-
-    char* value = calloc(sizeOfBuffer + 1, sizeof(char));
-    strcpy(value, buffer);
-
-    //printf("\nParseBody value = %s\n", value);
-    free(body);
-
-    return value;
-}
 
 
 task_t* MethodInterractive(int socketClient, task_t* head, parse_t* parseRequest)
@@ -339,14 +236,16 @@ char* BuildNames(char* buildedNames, task_t* pointer)
     return buildedNames;
 }
 
+//-----------------------------------------------------------------------------------------------------------------------------------
+
 task_t* Create (int socketClient, parse_t* parseRequest, task_t* head)
 {
-    if(CheckParametrs(socketClient, head, parseRequest))
+    if(CheckParametrs(socketClient, head, parseRequest) == false)
     {
         return head;
     }
 
-    char* name = ParseBody(parseRequest);
+    char* name = ParseNameParametr(parseRequest);
 
     if(head == NULL)
     {
@@ -409,21 +308,16 @@ void Read(int socketClient, task_t* head, parse_t* parseRequest)
 
 void Update(int socketClient, task_t* head, parse_t* parseRequest)
 {
-    if(CheckParametrs(socketClient, head, parseRequest) == true)
+    if(CheckParametrs(socketClient, head, parseRequest))
     {
         return;
     }
 
-    char* charId = ParseFirstParametr(parseRequest);
+    char* charId = ParseIdParametr(parseRequest);
     int id = atoi(charId);
     free(charId);
     
-    char* newName = ParseSecondParametr(parseRequest);
-    if(newName == NULL)
-    {
-        SendResponse(socketClient, BuildResponseErrorValue(List()));
-        return;
-    }
+    char* newName = ParseNameParametr(parseRequest);
 
     task_t* pointer = head;
 
@@ -442,12 +336,12 @@ void Update(int socketClient, task_t* head, parse_t* parseRequest)
 
 task_t* Delete(int socketClient, task_t* head, parse_t* parseRequest)
 {
-    if(CheckParametrs(socketClient, head, parseRequest) == true)
+    if(CheckParametrs(socketClient, head, parseRequest))
     {
         return head;
     }
 
-    char* charId = ParseFirstParametr(parseRequest);
+    char* charId = ParseIdParametr(parseRequest);
     int id = atoi(charId);
     free(charId);
 
@@ -497,8 +391,6 @@ task_t* Delete(int socketClient, task_t* head, parse_t* parseRequest)
     return head;
 }
 
-
-
 void ReassigneId(task_t* head)
 {
     task_t* pointer = head;
@@ -511,24 +403,7 @@ void ReassigneId(task_t* head)
     }
 }
 
-bool FindId(parse_t* parseRequest)
-{
-    bool isIdExist = false;
-
-    char* parametrs = IsolateParametrs(parseRequest);
-    size_t sizeOfParametrs = strlen(parametrs);
-
-    int i = 0;
-    while(i != sizeOfParametrs - 2)
-    {
-        if(parametrs[i] == 'i' && parametrs[i + 1] == 'd')
-        {
-            return isIdExist = true;
-        }
-        i++;
-    }
-    return isIdExist;
-}
+//-----------------------------------------------------------------------------------------------------------------------------------
 
 char* BuildResponseEmptyTask(list_t* list)
 {
@@ -773,15 +648,79 @@ char* BuildResponseErrorId(list_t* list)
     return buildedResponse;
 }
 
-char* IsolateParametrs(parse_t* parseRequest)
+//-----------------------------------------------------------------------------------------------------------------------------------
+
+void ParseMethod(parse_t* parseRequest)
 {
-    char* recieve = parseRequest->request;
-    size_t sizeOfRecieve = strlen(recieve);
+    char* request = parseRequest->request;
+    char buffer[100] = "\0";
 
     int i = 0;
-    while(i != sizeOfRecieve)
+
+    while(request[i] != ' ')
     {
-        if(recieve[i] == '?')
+        buffer[i] = request[i];
+        i++;
+    }
+    
+    size_t sizeOfBuffer = strlen(buffer);
+    parseRequest->method = calloc(sizeOfBuffer + 1, sizeof(char));
+    strcpy(parseRequest->method, buffer);
+    //printf("Method \n%s\n", parseRequest->method);   //show method
+}
+
+char* IsolateBody(parse_t* parseRequest)
+{
+    char* request = parseRequest->request;
+    int sizeOfRequest = strlen(request);
+
+    int i = 0;
+    int j = 2;
+    
+    while(j < sizeOfRequest)
+    {
+        if(request[i] == '\n' && request[j] == '\n')
+        {
+            break;
+        }
+        i++;
+        j++;
+    }
+
+    int a = 0;
+    char buffer[1024] = "\0";
+
+    while(j < sizeOfRequest)
+    {
+        buffer[a] = request[j];
+        j++;
+        a++;
+    }
+    size_t sizeOfBuffer = strlen(buffer);
+    char* body = calloc(sizeOfBuffer + 1, sizeof(char));
+    strcpy(body, buffer);
+
+    return body;
+}
+
+char* ParseBody(parse_t* parseRequest)
+{
+    int i = 0;
+    char* body = IsolateBody(parseRequest);
+    size_t sizeOfBody = strlen(body);
+
+    while(i != sizeOfBody)
+    {
+        if(body[i] == ':')
+        {
+            break;
+        }
+        i++;
+    }
+
+    while(i != sizeOfBody)
+    {
+        if(body[i] == '\"')
         {
             break;
         }
@@ -790,91 +729,33 @@ char* IsolateParametrs(parse_t* parseRequest)
 
     i++;
 
-    char bufferParametrs[1024] = "\0";
-
+    char buffer[1024] = "\0";
     int j = 0;
-    while(recieve[i] != ' ')
+    while(i < sizeOfBody)
     {
-        bufferParametrs[j] = recieve[i];
+        if(body[i] == '"')
+        {
+            break;
+        }
+        
+        buffer[j] = body[i];
         i++;
         j++;
     }
+    size_t sizeOfBuffer = strlen(buffer);
 
-    char* parametrs = calloc(strlen(bufferParametrs) + 1, sizeof(char));
-    strcat(parametrs, bufferParametrs);
+    char* value = calloc(sizeOfBuffer + 1, sizeof(char));
+    strcpy(value, buffer);
 
-    //printf("parametrs:\n%s\n", parametrs);
-    return parametrs;
+    //printf("\nParseBody value = %s\n", value);
+    free(body);
+
+    return value;
 }
 
-char* IsolateFirstParametr(parse_t* parseRequest)
+char* ParseIdParametr(parse_t* ParseRequest)
 {
-    char* parametrs = IsolateParametrs(parseRequest);
-    size_t sizeOfParametrs = strlen(parametrs);
-
-    char bufferOfFirstParametrs[1024] = "\0";
-
-    int i = 0;
-    while(i != sizeOfParametrs)
-    {
-        if(parametrs[i] == ' ' || parametrs[i] == '&')
-        {
-            break;
-        }
-        bufferOfFirstParametrs[i] = parametrs[i];
-        i++;
-    }
-    char* firstParametrs = calloc(strlen(bufferOfFirstParametrs) + 1, sizeof(char));
-    strcat(firstParametrs, bufferOfFirstParametrs);
-
-    free(parametrs);
-    //printf("IsolateFirstParametr:\n%s\n", firstParametrs);
-
-    return firstParametrs;
-}
-
-char* IsolateSecondParametr(parse_t* parseRequest)
-{
-    char* parametrs = IsolateParametrs(parseRequest);
-    size_t sizeOfParametrs = strlen(parametrs);
-
-    int i = 0;
-    while(i != sizeOfParametrs)
-    {
-        if(parametrs[i] == '&')
-        {
-            break;
-        }
-        i++;
-    }
-
-    i++;
-
-    char bufferOfSecondParametr[1024] = "\0";
-
-    int j = 0;
-    while(i != sizeOfParametrs)
-    {
-        if(parametrs[i] == ' ')
-        {
-            break;
-        }
-        bufferOfSecondParametr[j] = parametrs[i];
-        i++;
-        j++;
-    }
-    char* secondParametrs = calloc(strlen(bufferOfSecondParametr) + 1, sizeof(char));
-    strcat(secondParametrs, bufferOfSecondParametr);
-
-    //printf("secondParametrs:\n%s\n", secondParametrs);
-
-    free(parametrs);
-    return secondParametrs;
-}
-
-char* ParseFirstParametr(parse_t* ParseRequest)
-{
-    char* isolatedFirstParametr = IsolateFirstParametr(ParseRequest);
+    char* isolatedFirstParametr = IsolateIdParametr(ParseRequest);
     size_t sizeOfIsolatedFirstParametr = strlen(isolatedFirstParametr);
 
 
@@ -909,21 +790,22 @@ char* ParseFirstParametr(parse_t* ParseRequest)
     return parseFirstParametr;
 }
 
-char* ParseSecondParametr(parse_t* ParseRequest)
+char* ParseNameParametr(parse_t* ParseRequest)
 {
-    char* isolatedSecondParametr = IsolateSecondParametr(ParseRequest);
+    char* isolatedNameParametr = IsolateNameParametr(ParseRequest);
 
-    size_t sizeOfIsolatedSecondParametr = strlen(isolatedSecondParametr);
+    size_t sizeOfIsolatedSecondParametr = strlen(isolatedNameParametr);
 
     int i = 0;
     while(i != sizeOfIsolatedSecondParametr)
     {
-        if(isolatedSecondParametr[i] == '=')
+        if(isolatedNameParametr[i] == '=' || isolatedNameParametr[i] == ':')
         {
             break;
         }
         i++;
     }
+
     i++;
 
     char bufferOfSecondParametr[1024] = "\0";
@@ -931,7 +813,7 @@ char* ParseSecondParametr(parse_t* ParseRequest)
     int j = 0;
     while(i != sizeOfIsolatedSecondParametr)
     {
-        bufferOfSecondParametr[j] = isolatedSecondParametr[i];
+        bufferOfSecondParametr[j] = isolatedNameParametr[i];
         i++;
         j++;
     }
@@ -939,10 +821,332 @@ char* ParseSecondParametr(parse_t* ParseRequest)
     char* secondParametr = calloc(strlen(bufferOfSecondParametr) + 1, sizeof(char));
     strcat(secondParametr, bufferOfSecondParametr);
 
-    free(isolatedSecondParametr);
+    free(isolatedNameParametr);
 
+    printf("secondParametr %s \n", secondParametr);
     return secondParametr;
 }
+
+//-----------------------------------------------------------------------------------------------------------------------------------
+
+char* IsolateParametrs(parse_t* parseRequest)
+{
+    char* recieve = parseRequest->request;
+    size_t sizeOfRecieve = strlen(recieve);
+
+    int i = 0;
+    while(i != sizeOfRecieve)
+    {
+        if(recieve[i] == '?')
+        {
+            break;
+        }
+        i++;
+    }
+
+    i++;
+
+    char bufferParametrs[1024] = "\0";
+
+    int j = 0;
+    while(recieve[i] != ' ')
+    {
+        bufferParametrs[j] = recieve[i];
+        i++;
+        j++;
+    }
+
+    char* parametrs = calloc(strlen(bufferParametrs) + 1, sizeof(char));
+    strcat(parametrs, bufferParametrs);
+
+    //printf("parametrs:\n%s\n", parametrs);
+    return parametrs;
+}
+
+char* IsolateIdParametr(parse_t* parseRequest)
+{
+    char* parametrs = IsolateParametrs(parseRequest);
+    size_t sizeOfParametrs = strlen(parametrs);
+    
+    char bufferOfFirstParametrs[1024] = "\0";
+
+    int i = 0;
+
+    
+
+    while(i != sizeOfParametrs)
+    {
+        if(parametrs[i] == ' ' || parametrs[i] == '&')
+        {
+            break;
+        }
+        
+        bufferOfFirstParametrs[i] = parametrs[i];
+        i++;
+    }
+    char* firstParametrs = calloc(strlen(bufferOfFirstParametrs) + 1, sizeof(char));
+    strcat(firstParametrs, bufferOfFirstParametrs);
+
+    free(parametrs);
+    //printf("IsolateFirstParametr:\n%s\n", firstParametrs);
+
+    return firstParametrs;
+}
+
+char* IsolateNameParametr(parse_t* parseRequest)
+{
+    char* method = parseRequest->method;
+    size_t sizeOfParametrs = 0;
+
+    char* parametrs = NULL;
+
+    
+    int i = 0;
+
+    if(strcmp(method, "POST") == 0)
+    {
+        parametrs = IsolateBody(parseRequest);
+        sizeOfParametrs = strlen(parametrs);
+
+    }
+
+    
+    if(strcmp(method, "PUT") == 0)
+    {
+        parametrs = IsolateParametrs(parseRequest);
+        sizeOfParametrs = strlen(parametrs);
+    }
+
+    while(i != sizeOfParametrs)
+    {
+        if(parametrs[i] == '&' || parametrs[i] == '{')
+        {
+            break;
+        }
+        i++;
+    }
+
+    i++;
+
+    char bufferOfNameParametr[1024] = "\0";
+
+    int j = 0;
+
+    while(i != sizeOfParametrs)
+    {
+        if(parametrs[i] == ' ' || parametrs[i] == '}')
+        {
+            break;
+        }
+
+        if(parametrs[i] != '\"' )
+        {
+
+            bufferOfNameParametr[j] = parametrs[i];
+            j++;
+        }
+        i++;
+    }
+
+    char* nameParametr = calloc(strlen(bufferOfNameParametr) + 1, sizeof(char));
+    strcat(nameParametr, bufferOfNameParametr);
+
+    printf("nameParametr:\n%s\n", nameParametr);
+
+    free(parametrs);
+    return nameParametr;
+}
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------
+
+bool CheckErrorParametrId(int socketClient, parse_t* parseRequest)
+{
+    bool isIdExist = false;
+
+    char* idParametr = IsolateIdParametr(parseRequest);
+
+    char bufferCheckIdParametr[256] = "\0";
+    
+    int i = 0;
+
+    while(i != strlen(idParametr))
+    {
+        if(idParametr[i] == '=')
+        {
+            break;
+        }
+        bufferCheckIdParametr[i] = idParametr[i];
+        i++;
+    }
+
+    char* checkParametr = calloc(strlen(bufferCheckIdParametr), sizeof(char));
+    strcat(checkParametr, bufferCheckIdParametr);
+
+    if(strcmp(checkParametr, "id") != 0)
+    {
+        SendResponse(socketClient, BuildResponseErrorValue(List()));
+        return isIdExist;
+    }
+    
+    return isIdExist = true;
+}
+
+bool CheckErrorParametrName(int socketClient, parse_t* parseRequest)
+{
+    bool isParametrNameExist = false;
+
+    char* nameParametr = IsolateNameParametr(parseRequest);
+    printf("nameParametr %s\n", nameParametr);
+
+    char bufferCheckParametr[256] = "\0";
+
+    int i = 0;
+    while(i != strlen(nameParametr))
+    {
+        if(nameParametr[i] == '=' || nameParametr[i] == ':')
+        {
+            break;
+        }
+
+        bufferCheckParametr[i] = nameParametr[i];
+        i++;
+    }
+
+    char* checkParametr = calloc(strlen(bufferCheckParametr) + 1, sizeof(char));
+    strcat(checkParametr, bufferCheckParametr);
+
+    if(strcmp(checkParametr, "name") != 0)
+    {
+        SendResponse(socketClient, BuildResponseErrorValue(List()));
+        return isParametrNameExist;
+    }
+
+    free(checkParametr);
+    return isParametrNameExist = true;
+}
+
+bool CheckParametrs(int socketClient, task_t* head, parse_t* parseRequest)
+{
+    bool isParametrIdExist = false;
+    bool isIdExist = false;
+    bool isParametrNameExist = false;
+    bool isNameExist = false;
+
+    char* method = parseRequest->method;
+    if(strcmp(method, "DELETE") == 0)
+    {
+        isParametrIdExist = CheckErrorParametrId(socketClient, parseRequest);
+        isIdExist = CheckErrorId(socketClient, head, parseRequest);
+        printf("\nisParametrIdExist: %d\nisIdExist: %d\n", isParametrIdExist, isIdExist);
+
+        if(isParametrIdExist == true && isIdExist == true)
+        {
+            return true;
+        }
+    }
+    
+    if(strcmp(method, "POST") == 0)
+    {
+        isParametrNameExist = CheckErrorParametrName(socketClient, parseRequest);
+        isNameExist = CheckErrorName(socketClient, parseRequest);
+        printf("\nisParametrNameExist: %d\nisNameExist: %d\n", isParametrNameExist, isNameExist);
+
+        if(isParametrNameExist == true && isNameExist == true)
+        {
+            return true;
+        }
+    }
+    
+    if(strcmp(method, "PUT") == 0)
+    {
+        isParametrIdExist = CheckErrorParametrId(socketClient, parseRequest);
+        isIdExist = CheckErrorId(socketClient, head, parseRequest);
+        isParametrNameExist = CheckErrorParametrName(socketClient, parseRequest);
+        isNameExist = CheckErrorName(socketClient, parseRequest);
+        printf("\nisParametrIdExist: %d\nisIdExist: %d\n", isParametrIdExist, isIdExist);
+        printf("isParametrNameExist: %d\nisNameExist: %d\n", isParametrNameExist, isNameExist);
+        if(isParametrIdExist == true && isIdExist == true && isParametrNameExist == true && isNameExist == true)
+        {
+            return true;
+        }
+    }
+
+
+
+
+    return false;
+}
+
+bool CheckErrorId(int socketClient, task_t* head, parse_t* parseRequest)
+{
+    bool isIdExist = false;
+
+    task_t* lastTask = head;
+    if(head == NULL)
+    {
+        return false;
+    }
+    while(lastTask->nextTask != NULL)
+    {
+        lastTask = lastTask->nextTask;
+    }
+    
+    char* charId = ParseIdParametr(parseRequest);
+    if(charId[0] == '\0')
+    {
+        return isIdExist;
+    }
+    int id = atoi(charId);
+    free(charId);
+    
+    if(id == -1)
+    {
+        SendResponse(socketClient, BuildResponseErrorId(List()));
+        return isIdExist;
+    }
+
+    if(id < head->id)
+    {
+        SendResponse(socketClient, BuildResponseErrorId(List()));
+        return isIdExist;
+    }
+    
+    if(id > lastTask->id)
+    {
+        SendResponse(socketClient, BuildResponseErrorId(List()));
+        return isIdExist;
+    }
+    
+    return isIdExist = true;
+}
+
+bool CheckErrorName(int socketClient, parse_t* parseRequest)
+{
+    bool isNameExist = false;
+
+    char* name = NULL;
+
+    name = ParseNameParametr(parseRequest);
+
+    if(name == NULL)
+    {
+        SendResponse(socketClient, BuildResponseErrorValue(List()));
+        return isNameExist;
+    }
+
+    if(name[0] == '\0' || name[0] == '\"')
+    {
+        SendResponse(socketClient, BuildResponseErrorValue(List()));
+        return isNameExist;
+    }
+
+    free(name);
+
+    return isNameExist = true;
+}
+
+//-----------------------------------------------------------------------------------------------------------------------------------
 
 list_t* List()
 {
@@ -1063,167 +1267,11 @@ void FreeParse(parse_t* parseRequest)
     free(parseRequest);
 }
 
-bool CheckParametrId(parse_t* parseRequest)
-{
-    bool isIdExist = false;
 
-    char* isolateParametrs = IsolateParametrs(parseRequest);
-    size_t sizeOfIsolateParametrs = strlen(isolateParametrs);
 
-    int i = 0;
-    while(i != sizeOfIsolateParametrs - 1)
-    {
-        if(isolateParametrs[i] == 'i' && isolateParametrs[i + 1] == 'd')
-        {
-            return isIdExist = true;
-        }
-        i++;
-    }
-    return false;
-}
+//To Do:
+// Check parametrs for exist "&";
+// Check parametrs for exist "?";
+// Check parametrs for exist "=";
 
-bool CheckParametrName(parse_t* parseRequest)
-{
-    bool isParametrNameExist = false;
-
-    char* method = parseRequest->method;
     
-    char* parametrs = NULL;
-    size_t sizeOfParametr = 0;
-
-    if(strcmp(method, "POST") == 0)
-    {
-        parametrs = IsolateBody(parseRequest);
-        sizeOfParametr = strlen(parametrs);
-    }
-    if(strcmp(method, "PUT") == 0)
-    {
-        parametrs = IsolateSecondParametr(parseRequest);
-        sizeOfParametr = strlen(parametrs);
-    }
-    
-    int i = 0;
-    while(i != sizeOfParametr - 3)
-    {
-        if(parametrs[i] == 'n' && parametrs[i + 1] == 'a' && parametrs[i + 2] == 'm' && parametrs[i + 3] == 'e')
-        {
-            return isParametrNameExist = true;
-        }
-        i++;
-    }
-    return isParametrNameExist;
-}
-bool CheckParametrs(int socketClient, task_t* head, parse_t* parseRequest)
-{
-    bool isParametrIdExist = false;
-    bool isIdExist = false;
-    bool isParametrNameExist = false;
-    bool isNameExist = false;
-
-    char* method = parseRequest->method;
-    if(strcmp(method, "DELETE") == 0)
-    {
-        isParametrIdExist = CheckParametrId(parseRequest);
-        isIdExist = CheckErrorId(socketClient, head, parseRequest);
-        printf("isParametrIdExist: %d\nisIdExist: %d\n", isParametrIdExist, isIdExist);
-
-    }
-    
-    if(strcmp(method, "PUT") == 0)
-    {
-        isParametrIdExist = CheckParametrId(parseRequest);
-        isIdExist = CheckErrorId(socketClient, head, parseRequest);
-        isParametrNameExist = CheckParametrName(parseRequest);
-        isNameExist = CheckErrorName(socketClient, parseRequest);
-        printf("isParametrIdExist: %d\nisIdExist: %d\n", isParametrIdExist, isIdExist);
-        printf("isParametrNameExist: %d\nisNameExist: %d\n", isParametrNameExist, isNameExist);
-    }
-
-    if(isParametrIdExist == true && isIdExist == true)
-    {
-        return true;
-    }
-
-    if(isParametrIdExist == true && isIdExist == true && isParametrNameExist == true && isNameExist == true)
-    {
-        return true;
-    }
-
-    return false;
-}
-
-bool CheckErrorId(int socketClient, task_t* head, parse_t* parseRequest)
-{
-    bool isIdExist = false;
-
-    task_t* lastTask = head;
-    if(head != NULL)
-    {
-        while(lastTask->nextTask != NULL)
-        {
-            lastTask = lastTask->nextTask;
-        }
-    }
-    
-    char* charId = ParseFirstParametr(parseRequest);
-    if(charId[0] == '\0')
-    {
-        return isIdExist;
-    }
-    int id = atoi(charId);
-    free(charId);
-    
-    if(id == -1)
-    {
-        SendResponse(socketClient, BuildResponseErrorId(List()));
-        return isIdExist;
-    }
-
-    if(id < head->id)
-    {
-        SendResponse(socketClient, BuildResponseErrorId(List()));
-        return isIdExist;
-    }
-    
-    if(id > lastTask->id)
-    {
-        SendResponse(socketClient, BuildResponseErrorId(List()));
-        return isIdExist;
-    }
-    
-    return isIdExist = true;
-}
-
-bool CheckErrorName(int socketClient, parse_t* parseRequest)
-{
-    bool isNameExist = false;
-    char* method = parseRequest->method;
-
-    char* name = NULL;
-
-    if(strcmp(method, "POST") == 0)
-    {
-        name = ParseBody(parseRequest);
-    }
-
-    if(strcmp(method, "PUT") == 0)
-    {
-        name = ParseSecondParametr(parseRequest);
-    }
-
-    if(name == NULL)
-    {
-        SendResponse(socketClient, BuildResponseErrorValue(List()));
-        return isNameExist;
-    }
-    
-    if(name[0] == '\0')
-    {
-        SendResponse(socketClient, BuildResponseErrorValue(List()));
-        return isNameExist;
-    }
-
-    free(name);
-
-    return isNameExist = true;
-}
