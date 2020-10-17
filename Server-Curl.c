@@ -66,10 +66,15 @@ bool CheckSeparatorExist(parametrs_t* parametrs);
 bool CheckParametrIdEqualesExist(parametrs_t* parametrs);
 bool CheckLabelIdExist(parametrs_t* parametrs);
 bool CheckParametrsIdExist(parametrs_t* parametrs);
+bool CheckDataIdExist(parametrs_t* parametrs);
+bool CheckIdExist(task_t* head, parametrs_t* parametrs);
 
 bool CheckParametrNameEqualesExist(parametrs_t* parametrs);
 bool CheckLabelNameExist(parametrs_t* parametrs);
 bool CheckParametrsNameExist(parametrs_t* parametrs);
+bool CheckDataNameExist(parametrs_t* parametrs);
+bool CheckNameExist(parametrs_t* parametrs);
+
 
 task_t* MethodInterractive(int socketClient, task_t* head, parametrs_t* parametrs);
 
@@ -216,7 +221,7 @@ void ParseName(parametrs_t* parametrs)
     char* isolatedParametrsName = parametrs->isolatedParametrName;
     size_t sizeOfIsolatedParametrsName = strlen(isolatedParametrsName);
 
-    if(CheckParametrsNameExist(parametrs) == false || strcmp(method, "DELETE") == 0)
+    if(CheckParametrsNameExist(parametrs) == false)
     {
         parametrs->dataName = NULL;
         return;
@@ -368,16 +373,20 @@ void IsolateParametrId(parametrs_t* parametrs)
 
 void IsolateParametrName(parametrs_t* parametrs)
 {
-    if(CheckSeparatorExist(parametrs) == false)
+    char* method = parametrs->method;
+
+    if(strcmp(method, "PUT") == 0)
     {
-        parametrs->isolatedParametrName = NULL;
-        return;
+        if(CheckSeparatorExist(parametrs) == false)
+        {
+            parametrs->isolatedParametrName = NULL;
+            return;
+        }
     }
+
 
     char* isolatedParametrs = parametrs->isloatedParametrs;
     size_t sizeOfIsolatedParametrs = strlen(isolatedParametrs);
-
-    char* method = parametrs->method;
 
     int i = 0;
 
@@ -392,6 +401,7 @@ void IsolateParametrName(parametrs_t* parametrs)
             i++;
         }
     }
+
     i++;
 
     char bufferOfIsolatedParametrName[256] = "\0";
@@ -428,7 +438,7 @@ bool CheckSeparatorExist(parametrs_t* parametrs)
 
     while(i < sizeOfIsolatedParametrs)
     {
-        if(isolatedParametrs[i] == '&' || isolatedParametrs[i] == ':')
+        if(isolatedParametrs[i] == '&')
         {
             isAmpersandExist = true;
         }
@@ -445,7 +455,6 @@ bool CheckLabelIdExist(parametrs_t* parametrs)
     bool isLabelIdExist = false;
 
     char* isolatedParametrId = parametrs->isolatedParametrId;
-    printf("isolatedParametrId [%s]\n", parametrs->isolatedParametrId);
     size_t sizeOfIsolatedParametrId = strlen(isolatedParametrId);
 
     char bufferLabelId[256] = "\0";
@@ -467,7 +476,7 @@ bool CheckLabelIdExist(parametrs_t* parametrs)
         isLabelIdExist = true;
     }
 
-    printf("isLabelIdExist [%d]", isLabelIdExist);
+    printf("isLabelIdExist [%d]\n", isLabelIdExist);
     return isLabelIdExist;
 }
 
@@ -493,20 +502,62 @@ bool CheckParametrIdEqualesExist(parametrs_t* parametrs)
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------------
-bool CheckParametrsIdExist(parametrs_t* parametrs)
+
+bool CheckDataIdExist(parametrs_t* parametrs)
 {
-    char* method = parametrs->method;
-    if(strcmp(method, "POST") == 0)
+    bool isDataIdExist = false;
+
+    char* isolatedParametrId = parametrs->isolatedParametrId;
+
+    if(isolatedParametrId[3] != '\0' ||  isolatedParametrId[3] != '\0')
     {
-        return false;
+        isDataIdExist = true;
     }
 
+    printf("isDataIdExist[%d]\n", isDataIdExist);
+    return isDataIdExist;
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------------
+
+bool CheckIdExist(task_t* head, parametrs_t* parametrs)
+{
+    bool isIdExist = false;
+
+    if(CheckParametrsIdExist(parametrs) == false || head == NULL)
+    {
+        return isIdExist;
+    }
+
+    int id = atoi(parametrs->dataId);
+
+    task_t* lastTask = head;
+
+    while (lastTask->nextTask != NULL)
+    {
+       lastTask = lastTask->nextTask;
+    }
+    
+    if(id >= head->id && id <= lastTask->id)
+    {
+        isIdExist = true;
+    }
+
+    printf("isIdExist[%d]\n", isIdExist);
+    return isIdExist;
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------------
+
+bool CheckParametrsIdExist(parametrs_t* parametrs)
+{
     bool isParametrsIdExist = false;
 
     bool isLabelIdExist = CheckLabelIdExist(parametrs);
     bool isParametrIdEqualesExist = CheckParametrIdEqualesExist(parametrs);
+    bool isDataIdExist = CheckDataIdExist(parametrs);
 
-    if(isLabelIdExist == true && isParametrIdEqualesExist == true)
+    if(isLabelIdExist == true && isParametrIdEqualesExist == true && isDataIdExist == true)
     {
         isParametrsIdExist = true;
     }
@@ -514,6 +565,7 @@ bool CheckParametrsIdExist(parametrs_t* parametrs)
     printf("isParametrsIdExist [%d]\n", isParametrsIdExist);
     return isParametrsIdExist;
 }
+
 //--------------------------------------------------------------------------------------------------------------------------------------
 
 bool CheckParametrNameEqualesExist(parametrs_t* parametrs)
@@ -527,32 +579,14 @@ bool CheckParametrNameEqualesExist(parametrs_t* parametrs)
         isParametrNameEqualesExist = true;
     }
 
+    printf("isParametrNameEqualesExist[%d]\n", isParametrNameEqualesExist);
+
     return isParametrNameEqualesExist;
 }
 
-//--------------------------------------------------------------------------------------------------------------------------------------
-
-bool CheckParametrsNameExist(parametrs_t* parametrs)
-{
-    bool isParametrsNameExist = false;
-
-    bool isLabelNameExist = CheckLabelNameExist(parametrs);
-    bool isParametrNameParametrEqualseExist = CheckParametrNameEqualesExist(parametrs);
-
-
-    if(isLabelNameExist == true && isParametrNameParametrEqualseExist == true)
-    {
-       isParametrsNameExist = true;
-    }
-
-    printf("isParametrsNameExist[%d]\n", isParametrsNameExist);
-    return isParametrsNameExist;
-}
 
 //--------------------------------------------------------------------------------------------------------------------------------------
 
-
-//--------------------------------------------------------------------------------------------------------------------------------------
 
 bool CheckLabelNameExist(parametrs_t* parametrs)
 {
@@ -582,6 +616,65 @@ bool CheckLabelNameExist(parametrs_t* parametrs)
 
     printf("isLabelNameExist[%d]\n", isLabelNameExist);
     return isLabelNameExist;
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------------
+
+bool CheckDataNameExist(parametrs_t* parametrs)
+{
+    bool isDataNameExist = false;
+
+    char* isolatedParametrName = parametrs->isolatedParametrName;
+    
+    if(isolatedParametrName[5] != '\0' || isolatedParametrName[5] != ' ')
+    {
+        isDataNameExist = true;
+    }
+
+
+    return isDataNameExist;
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------------
+
+bool CheckParametrsNameExist(parametrs_t* parametrs)
+{
+    bool isParametrsNameExist = false;
+
+    bool isLabelNameExist = CheckLabelNameExist(parametrs);
+    bool isParametrNameParametrEqualseExist = CheckParametrNameEqualesExist(parametrs);
+    bool isDataNameExist = CheckDataNameExist(parametrs);
+
+    if(isLabelNameExist == true && isParametrNameParametrEqualseExist == true && isDataNameExist == true)
+    {
+       isParametrsNameExist = true;
+    }
+
+    printf("isParametrsNameExist[%d]\n", isParametrsNameExist);
+    return isParametrsNameExist;
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------------
+
+bool CheckNameExist(parametrs_t* parametrs)
+{
+    bool isNameExist = false;
+
+    if(CheckParametrsNameExist(parametrs) == false)
+    {
+        return isNameExist;
+    }
+
+    char* name = parametrs->dataName;
+
+    if(name[0] != '\0')
+    {
+        isNameExist = true;
+    }
+
+    printf("isNameExist:\n[%d]\n", isNameExist);
+
+    return isNameExist;
 }
 
 //=========================================================================================================================
@@ -615,8 +708,9 @@ task_t* MethodInterractive(int socketClient, task_t* head, parametrs_t* parametr
 
 task_t* Create(int socketClient, parametrs_t* parametrs, task_t* head)
 {
-    if(parametrs->dataName == NULL)
+    if(CheckNameExist(parametrs) == false)
     {
+        SendResponse(socketClient, BuildResponseErrorValue(List()));
         return head;
     }
 
@@ -688,9 +782,9 @@ void Read(int socketClient, task_t* head, parametrs_t* parametrs)
 
 void Update(int socketClient, task_t* head, parametrs_t* parametrs)
 {
-    if(parametrs->dataId == NULL || parametrs->dataName == NULL)
+    if(CheckIdExist(head, parametrs) == false || CheckParametrsNameExist(parametrs) == false || head == NULL)
     {
-        printf("I am here");
+        SendResponse(socketClient, BuildResponseErrorValue(List()));
         return;
     }
 
@@ -716,12 +810,12 @@ void Update(int socketClient, task_t* head, parametrs_t* parametrs)
 
 task_t* Delete(int socketClient, task_t* head, parametrs_t* parametrs)
 {
-    if(parametrs->dataId == NULL)
+    if(CheckIdExist(head, parametrs) == false || head == NULL)
     {
+        SendResponse(socketClient, BuildResponseConfirmationRequest(List(), -1));
         return head;
     }
 
-    printf("Delete->dataId\n[%s]\n", parametrs->dataId);
 
     int id = atoi(parametrs->dataId);
 
