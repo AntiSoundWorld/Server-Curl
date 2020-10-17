@@ -204,6 +204,7 @@ void ParseId(parametrs_t* parametrs)
     {
         bufferOfParseId[j] = isolatedParametrId[i];
         i++;
+        j++;
     }
 
     parametrs->dataId = calloc(strlen(bufferOfParseId) + 1, sizeof(char));
@@ -782,7 +783,13 @@ void Read(int socketClient, task_t* head, parametrs_t* parametrs)
 
 void Update(int socketClient, task_t* head, parametrs_t* parametrs)
 {
-    if(CheckIdExist(head, parametrs) == false || CheckNameExist(parametrs) == false || head == NULL)
+    if(CheckIdExist(head, parametrs) == false)
+    {
+        SendResponse(socketClient, BuildResponseErrorId(List()));
+        return;
+    }
+
+    if(CheckNameExist(parametrs) == false)
     {
         SendResponse(socketClient, BuildResponseErrorValue(List()));
         return;
@@ -810,9 +817,9 @@ void Update(int socketClient, task_t* head, parametrs_t* parametrs)
 
 task_t* Delete(int socketClient, task_t* head, parametrs_t* parametrs)
 {
-    if(CheckIdExist(head, parametrs) == false || head == NULL)
+    if(CheckIdExist(head, parametrs) == false)
     {
-        SendResponse(socketClient, BuildResponseConfirmationRequest(List(), -1));
+        SendResponse(socketClient, BuildResponseErrorId(List()));
         return head;
     }
 
