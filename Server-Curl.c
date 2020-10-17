@@ -283,9 +283,8 @@ void IsolateParametrs(parametrs_t* parametrs)
 
         while (request[j] < sizeOfRequest - 1)
         {
-            printf("%c[]\n", request[i]);
-
-            if(request[i] == '\r' && request[i + 1] == '\n' && request[j] == '\r' && request[j + 1] == '\n')
+            
+            if(request[i] == '\n' && request[j] == '\n')
             {
                 break;
             }
@@ -316,7 +315,7 @@ void IsolateParametrs(parametrs_t* parametrs)
     int j = 0;
     while(i < sizeOfRequest)
     {
-        if(request[i] == '\0')
+        if(request[i] == ' ')
         {
             break;
         }
