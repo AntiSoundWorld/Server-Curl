@@ -275,16 +275,21 @@ void IsolateParametrs(parametrs_t* parametrs)
 
     int i = 0;
 
+    i = 0;
+
     if(strcmp(method, "POST") == 0)
     {
         int j = 2;
 
-        while (request[j] < sizeOfRequest)
+        while (request[j] < sizeOfRequest - 1)
         {
-            if(request[i] == '\n' && request[j] == '\n')
+            printf("%c[]\n", request[i]);
+
+            if(request[i] == '\r' && request[i + 1] == '\n' && request[j] == '\r' && request[j + 1] == '\n')
             {
                 break;
             }
+       
             i++;
             j++;
         }
@@ -311,7 +316,7 @@ void IsolateParametrs(parametrs_t* parametrs)
     int j = 0;
     while(i < sizeOfRequest)
     {
-        if(request[i] == ' ')
+        if(request[i] == '\0')
         {
             break;
         }
