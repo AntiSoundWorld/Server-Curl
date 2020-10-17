@@ -782,7 +782,7 @@ void Read(int socketClient, task_t* head, parametrs_t* parametrs)
 
 void Update(int socketClient, task_t* head, parametrs_t* parametrs)
 {
-    if(CheckIdExist(head, parametrs) == false || CheckParametrsNameExist(parametrs) == false || head == NULL)
+    if(CheckIdExist(head, parametrs) == false || CheckNameExist(parametrs) == false || head == NULL)
     {
         SendResponse(socketClient, BuildResponseErrorValue(List()));
         return;
