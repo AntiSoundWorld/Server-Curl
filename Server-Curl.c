@@ -5,7 +5,6 @@
 #include <stdbool.h>
 #include <string.h>
 
-
 typedef struct Parametrs
 {
     char* request;
@@ -510,7 +509,7 @@ bool CheckDataIdExist(parametrs_t* parametrs)
 
     char* isolatedParametrId = parametrs->isolatedParametrId;
 
-    if(isolatedParametrId[3] != '\0' ||  isolatedParametrId[3] != '\0')
+    if(isolatedParametrId[3] != '\0')
     {
         isDataIdExist = true;
     }
